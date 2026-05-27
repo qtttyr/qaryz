@@ -23,5 +23,6 @@ export interface Person {
   id: string;
   name: string;
   avatar?: string; // URL or base64
+  phone?: string;
   createdAt: string;
 }

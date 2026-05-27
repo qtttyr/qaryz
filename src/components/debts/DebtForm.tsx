@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -34,13 +34,28 @@ export default function DebtForm({
   const [selectedPersonId, setSelectedPersonId] = useState(
     defaultPersonId || ""
   );
+  const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
 
   const people = useDebtStore((s) => s.people);
   const addDebt = useDebtStore((s) => s.addDebt);
   const addPerson = useDebtStore((s) => s.addPerson);
+  const updatePerson = useDebtStore((s) => s.updatePerson);
   const currency = useUserStore((s) => s.profile.currency);
+
+  useEffect(() => {
+    if (selectedPersonId) {
+      const person = people.find((p) => p.id === selectedPersonId);
+      if (person && person.phone) {
+        setPhone(person.phone);
+      } else {
+        setPhone("");
+      }
+    } else {
+      setPhone("");
+    }
+  }, [selectedPersonId, people]);
 
   const currencySymbols: Record<string, string> = {
     KZT: "₸",
@@ -56,7 +71,9 @@ export default function DebtForm({
 
     // Create new person if needed
     if (!personId && personName.trim()) {
-      personId = addPerson(personName.trim());
+      personId = addPerson(personName.trim(), phone.trim() || undefined);
+    } else if (personId && phone.trim()) {
+      updatePerson(personId, { phone: phone.trim() });
     }
 
     if (!personId) return;
@@ -71,6 +88,7 @@ export default function DebtForm({
     // Reset form
     setPersonName("");
     setSelectedPersonId(defaultPersonId || "");
+    setPhone("");
     setAmount("");
     setDescription("");
     onClose();
@@ -173,11 +191,38 @@ export default function DebtForm({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                className="space-y-3"
               >
                 <Input
                   placeholder="Имя нового человека"
                   value={personName}
                   onChange={(e) => setPersonName(e.target.value)}
+                  className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                />
+                <Input
+                  placeholder="Номер телефона (необязательно)"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Existing person phone input (if selected) */}
+          <AnimatePresence>
+            {selectedPersonId && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <Input
+                  placeholder="Номер телефона (добавить/изменить)"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
                 />
               </motion.div>

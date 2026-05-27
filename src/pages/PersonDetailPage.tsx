@@ -72,7 +72,12 @@ export default function PersonDetailPage() {
                   getInitials(person.name)
                 )}
               </div>
-              <span className="font-semibold text-foreground">{person.name}</span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-foreground leading-none">{person.name}</span>
+                {person.phone && (
+                  <span className="text-[10px] text-muted-foreground mt-0.5">{person.phone}</span>
+                )}
+              </div>
             </div>
           </div>
           <Button
@@ -102,7 +107,7 @@ export default function PersonDetailPage() {
         </h2>
         
         <div className="flex items-center justify-center gap-3 mt-6">
-          <ReminderButton personName={person.name} />
+          <ReminderButton personId={person.id} />
           <Button 
             onClick={() => openModal("add-debt", { personId: person.id })}
             className="gap-2 rounded-xl"

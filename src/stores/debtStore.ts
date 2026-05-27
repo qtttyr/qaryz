@@ -20,7 +20,8 @@ interface DebtStore {
   addPayment(debtId: string, amount: number, note?: string): void;
 
   // Person CRUD
-  addPerson(name: string): string;
+  addPerson(name: string, phone?: string): string;
+  updatePerson(id: string, partial: Partial<Person>): void;
   removePerson(personId: string): void;
   getPerson(id: string): Person | undefined;
 
@@ -91,15 +92,24 @@ export const useDebtStore = create<DebtStore>()(
         });
       },
 
-      addPerson(name) {
+      addPerson(name, phone) {
         const id = generateId();
         const newPerson: Person = {
           id,
           name,
+          phone,
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ people: [...state.people, newPerson] }));
         return id;
+      },
+
+      updatePerson(id, partial) {
+        set((state) => ({
+          people: state.people.map((p) =>
+            p.id === id ? { ...p, ...partial } : p
+          ),
+        }));
       },
 
       removePerson(personId) {
