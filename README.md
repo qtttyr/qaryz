@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# Qaryz 💸
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Деньги и друзья — совместимы.**
 
-Currently, two official plugins are available:
+Qaryz — это минималистичное PWA для учёта долгов и взаиморасчётов между людьми. Без таблиц, без бухгалтерии, без неловкости.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+**Проблема** — мы даём в долг и забываем. Или помним, но неудобно напоминать. Или напоминаем — и портим отношения.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Решение** — запись за 5 секунд, интерфейс как чат, автонапоминания. Ты не бухгалтер — ты просто друг, который не теряет деньги.
 
-## Expanding the ESLint configuration
+**Фишка** — напомнил одним касанием. Сформировал сообщение и отправил в Telegram / WhatsApp за секунду — не выходя из приложения.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Принципы**
+- ⚡ 5 секунд на создание долга
+- 📤 Секунда — и напоминание улетело в Telegram / WhatsApp
+- 🎨 Чистый, воздушный интерфейс
+- 👥 Эмоции важнее цифр — история как чат, не как таблица
+- 🔒 Всё локально, офлайн, приватно
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Стек:** React 19 • TypeScript 6 • Vite 8 • Tailwind CSS v4 • shadcn/ui • Zustand • Framer Motion • PWA
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
