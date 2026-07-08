@@ -5,12 +5,6 @@ import { GroupCard } from "@/components/groups/GroupCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -26,8 +20,6 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useGroupStore } from "@/stores/groupStore";
 import { Plus, Users, Search, Loader2, LogIn } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function GroupsPage() {
   const groups = useGroups();
@@ -35,7 +27,6 @@ export default function GroupsPage() {
   const user = useAuthStore((s) => s.user);
   const syncStatus = useGroupStore((s) => s.syncStatus);
   const createGroup = useGroupStore((s) => s.createGroup);
-  const isMobile = useIsMobile();
 
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -80,11 +71,6 @@ export default function GroupsPage() {
       </div>
     );
   }
-
-  const Container = isMobile ? Sheet : Dialog;
-  const ContainerContent = isMobile ? SheetContent : DialogContent;
-  const ContainerHeader = isMobile ? SheetHeader : DialogHeader;
-  const ContainerTitle = isMobile ? SheetTitle : DialogTitle;
 
   return (
     <div className="flex flex-col h-full">
@@ -153,12 +139,12 @@ export default function GroupsPage() {
 
       {/* Create Group Dialog */}
       {showCreate && (
-        <Container open={showCreate} onOpenChange={setShowCreate}>
-          <ContainerContent className={cn(isMobile ? "" : "sm:max-w-sm")}>
-            <ContainerHeader>
-              <ContainerTitle>Новая группа</ContainerTitle>
-            </ContainerHeader>
-            <div className="space-y-4 mt-2">
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Новая группа</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
               <div className="flex gap-3">
                 <Input
                   placeholder="👥"
@@ -182,8 +168,8 @@ export default function GroupsPage() {
                 {creating ? "Создание..." : "Создать группу"}
               </Button>
             </div>
-          </ContainerContent>
-        </Container>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

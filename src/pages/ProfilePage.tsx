@@ -1,6 +1,7 @@
 import { useUserStore } from "@/stores/userStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
+import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,13 @@ export default function ProfilePage() {
             currentUrl={profile.avatar}
             name={isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
             size="xl"
-            onUpdate={(url) => updateProfile({ avatar: url })}
+            onUpdate={(url) => {
+              updateProfile({ avatar: url });
+              // Persist to Supabase profiles table so it survives logout
+              if (user?.id) {
+                supabase.from("profiles").upsert({ id: user.id, avatar_url: url }).then();
+              }
+            }}
           />
           <div className="flex-1 min-w-0 space-y-1">
             <h2 className="text-xl font-bold truncate">

@@ -80,7 +80,7 @@ export default function BottomNav({ variant = "bottom" }: BottomNavProps) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+      <div className="flex items-center h-16 max-w-lg mx-auto">
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
@@ -88,11 +88,11 @@ export default function BottomNav({ variant = "bottom" }: BottomNavProps) {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                "relative flex flex-col items-center gap-0.5 py-1 px-3 transition-colors duration-200 rounded-xl",
+                "relative flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors duration-200",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center">
                 <HugeiconsIcon
                   icon={item.icon}
                   size={22}
@@ -106,7 +106,7 @@ export default function BottomNav({ variant = "bottom" }: BottomNavProps) {
                   />
                 )}
               </div>
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </button>
           );
         })}

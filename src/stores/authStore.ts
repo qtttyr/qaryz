@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
+import { useUserStore } from "./userStore";
 import type { User, Session } from "@supabase/supabase-js";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
@@ -14,6 +15,7 @@ interface AuthStore {
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   setSession: (session: Session | null) => void;
+  syncProfile: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -27,6 +29,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
       if (session) {
         set({ user: session.user, session, state: "authenticated" });
+        // Sync profile from DB
+        const store = useAuthStore.getState();
+        await store.syncProfile();
       } else {
         set({ user: null, session: null, state: "unauthenticated" });
       }
@@ -34,12 +39,59 @@ export const useAuthStore = create<AuthStore>((set) => ({
       supabase.auth.onAuthStateChange((_event, session) => {
         if (session) {
           set({ user: session.user, session, state: "authenticated" });
+          // Sync profile on any auth change
+          const store = useAuthStore.getState();
+          store.syncProfile();
         } else {
           set({ user: null, session: null, state: "unauthenticated" });
         }
       });
     } catch {
       set({ user: null, session: null, state: "unauthenticated" });
+    }
+  },
+
+  syncProfile: async () => {
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, username, avatar_url, currency, language")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (profile) {
+        useUserStore.getState().updateProfile({
+          name: profile.name || currentUser.user_metadata?.name as string || "Пользователь",
+          username: profile.username || currentUser.email?.split("@")[0] || "user",
+          avatar: profile.avatar_url || undefined,
+          currency: (profile.currency as "KZT" | "RUB" | "USD") || "KZT",
+          language: (profile.language as "ru" | "en") || "ru",
+        });
+      } else {
+        // No profile row yet — create one
+        const name = (currentUser.user_metadata?.name as string) ||
+          currentUser.email?.split("@")[0] || "Пользователь";
+        const username = currentUser.email?.split("@")[0] || "user";
+
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: currentUser.id,
+          name,
+          username,
+        });
+
+        if (!insertError) {
+          useUserStore.getState().updateProfile({
+            name,
+            username,
+            id: currentUser.id,
+          });
+        }
+      }
+    } catch {
+      // Silent fail — profile works offline
     }
   },
 
@@ -67,6 +119,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     if (error) return { error: error.message };
     set({ user: data.user, session: data.session, state: "authenticated" });
+    // Sync profile after login
+    await useAuthStore.getState().syncProfile();
     return {};
   },
 
