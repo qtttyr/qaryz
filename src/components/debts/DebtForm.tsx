@@ -16,7 +16,7 @@ import type { DebtDirection } from "@/types/debt";
 import { cn } from "@/lib/utils";
 import { getInitials, getAvatarColor } from "@/lib/formatters";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Users } from "lucide-react";
+import { Users } from "lucide-react";
 
 interface DebtFormProps {
   open: boolean;
@@ -81,14 +81,6 @@ export default function DebtForm({
 
   const isFriendPerson = (personId: string) => {
     return friends.some((f) => {
-      const otherId = f.userId === user?.id ? f.friendId : f.userId;
-      return otherId === personId;
-    });
-  };
-
-  // Get friend info for a person ID
-  const getFriendForPerson = (personId: string) => {
-    return friends.find((f) => {
       const otherId = f.userId === user?.id ? f.friendId : f.userId;
       return otherId === personId;
     });

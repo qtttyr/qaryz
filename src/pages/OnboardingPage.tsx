@@ -8,8 +8,6 @@ import {
   AiMagicIcon,
   ArrowRight01Icon,
   CheckmarkCircle01Icon,
-  UserIcon,
-  TelephoneIcon,
   Loading04Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
@@ -507,7 +505,7 @@ function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
   const [usernameError, setUsernameError] = useState("");
   const [checking, setChecking] = useState(false);
   const [usernameTouched, setUsernameTouched] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const updateProfile = useAuthStore((s) => s.updateProfile);

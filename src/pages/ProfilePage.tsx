@@ -31,8 +31,6 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Share2 } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
-
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
   const updateProfile = useUserStore((s) => s.updateProfile);
