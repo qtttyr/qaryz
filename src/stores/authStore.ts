@@ -77,6 +77,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
         update.avatar = profile.avatar_url || undefined;
         update.phone = profile.phone || undefined;
         useUserStore.getState().updateProfile(update);
+
+        // If profile exists with a non-auto-generated username → already onboarded
+        if (profile.username && !/^user_[a-f0-9]{8}$/i.test(profile.username)) {
+          localStorage.setItem("qaryz-onboarded", "true");
+        }
       } else {
         const name = (currentUser.user_metadata?.name as string) ||
           currentUser.email?.split("@")[0] || "Пользователь";

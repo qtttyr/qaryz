@@ -185,6 +185,16 @@ export const useFriendStore = create<FriendStore>()(
           return { error: "Вы уже друзья" };
         }
 
+        // Check if already sent a request
+        if (get().outgoingRequests.some((r) => r.receiverId === receiverId)) {
+          return { error: "Вы уже отправили заявку этому пользователю" };
+        }
+
+        // Check if they already sent you a request
+        if (get().incomingRequests.some((r) => r.senderId === receiverId)) {
+          return { error: "Этот пользователь уже отправил вам заявку. Проверьте вкладку «Друзья»" };
+        }
+
         const id = generateId();
         const newRequest: FriendRequest = {
           id, senderId: user.id, receiverId,
@@ -202,7 +212,7 @@ export const useFriendStore = create<FriendStore>()(
           set((s) => ({
             outgoingRequests: s.outgoingRequests.filter((r) => r.id !== id),
           }));
-          return { error: "Не удалось отправить заявку. Возможно, вы уже отправляли." };
+          return { error: "Не удалось отправить заявку. Попробуйте позже." };
         }
 
         return {};

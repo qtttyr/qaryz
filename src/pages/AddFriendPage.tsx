@@ -157,11 +157,11 @@ export default function AddFriendPage() {
   };
 
   const goBack = () => {
-    if (targetUserId) {
-      navigate("/friends");
-    } else {
-      navigate("/friends");
-    }
+    navigate("/friends");
+  };
+
+  const navigateToProfile = (userId: string) => {
+    navigate(`/add-friend/${userId}`);
   };
 
   const title = targetUserId ? "Профиль" : "Добавить друга";
@@ -398,27 +398,30 @@ export default function AddFriendPage() {
                     return (
                       <div
                         key={u.id}
-                        className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border/50 hover:border-border/80 transition-colors"
+                        className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border/50 transition-colors"
                       >
-                        {/* Avatar */}
-                        <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 bg-muted">
-                          {u.avatar ? (
-                            <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className={cn(
-                              "w-full h-full flex items-center justify-center text-sm font-bold text-white",
-                              getAvatarColor(u.name)
-                            )}>
-                              {getInitials(u.name)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{u.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
-                        </div>
+                        {/* Avatar + Info — clickable to profile */}
+                        <button
+                          onClick={() => navigateToProfile(u.id)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 bg-muted ring-1 ring-primary/10 hover:ring-2 hover:ring-primary/30 transition-all">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className={cn(
+                                "w-full h-full flex items-center justify-center text-sm font-bold text-white",
+                                getAvatarColor(u.name)
+                              )}>
+                                {getInitials(u.name)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{u.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
+                          </div>
+                        </button>
 
                         {/* Action */}
                         {isSent ? (
