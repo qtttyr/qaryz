@@ -9,10 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebtStore } from "@/stores/debtStore";
+import { useFriendStore } from "@/stores/friendStore";
 import { useUserStore } from "@/stores/userStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { DebtDirection } from "@/types/debt";
 import { cn } from "@/lib/utils";
+import { getInitials, getAvatarColor } from "@/lib/formatters";
 import { motion, AnimatePresence } from "framer-motion";
+import { Search, Users } from "lucide-react";
 
 interface DebtFormProps {
   open: boolean;
@@ -37,30 +41,57 @@ export default function DebtForm({
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [mode, setMode] = useState<"friend" | "manual">("friend");
 
   const people = useDebtStore((s) => s.people);
   const addDebt = useDebtStore((s) => s.addDebt);
   const addPerson = useDebtStore((s) => s.addPerson);
   const updatePerson = useDebtStore((s) => s.updatePerson);
+  const addSharedDebt = useDebtStore((s) => s.addSharedDebt);
   const currency = useUserStore((s) => s.profile.currency);
+
+  const friends = useFriendStore((s) => s.friends);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (selectedPersonId) {
       const person = people.find((p) => p.id === selectedPersonId);
-      if (person && person.phone) {
-        setPhone(person.phone);
-      } else {
-        setPhone("");
-      }
+      if (person && person.phone) setPhone(person.phone);
+      else setPhone("");
     } else {
       setPhone("");
     }
   }, [selectedPersonId, people]);
 
+  // When friends update, pre-select if we have matching person
+  useEffect(() => {
+    if (!selectedPersonId && defaultPersonId) {
+      setSelectedPersonId(defaultPersonId);
+      const isFriend = friends.some((f) => {
+        const otherId = f.userId === user?.id ? f.friendId : f.userId;
+        return otherId === defaultPersonId;
+      });
+      setMode(isFriend ? "friend" : "manual");
+    }
+  }, [friends, defaultPersonId, selectedPersonId, user?.id]);
+
   const currencySymbols: Record<string, string> = {
-    KZT: "₸",
-    RUB: "₽",
-    USD: "$",
+    KZT: "₸", RUB: "₽", USD: "$",
+  };
+
+  const isFriendPerson = (personId: string) => {
+    return friends.some((f) => {
+      const otherId = f.userId === user?.id ? f.friendId : f.userId;
+      return otherId === personId;
+    });
+  };
+
+  // Get friend info for a person ID
+  const getFriendForPerson = (personId: string) => {
+    return friends.find((f) => {
+      const otherId = f.userId === user?.id ? f.friendId : f.userId;
+      return otherId === personId;
+    });
   };
 
   const handleSubmit = async () => {
@@ -69,35 +100,38 @@ export default function DebtForm({
 
     let personId = selectedPersonId;
 
-    // Create new person if needed
-    if (!personId && personName.trim()) {
-      personId = await addPerson(personName.trim(), phone.trim() || undefined);
-    } else if (personId && phone.trim()) {
-      updatePerson(personId, { phone: phone.trim() });
+    // If friend mode and a friend is selected → use shared debt
+    if (mode === "friend" && personId && isFriendPerson(personId)) {
+      await addSharedDebt(personId, numAmount, direction, description.trim() || undefined);
+    } else {
+      // Manual flow
+      if (!personId && personName.trim()) {
+        personId = await addPerson(personName.trim(), phone.trim() || undefined);
+      } else if (personId && phone.trim()) {
+        updatePerson(personId, { phone: phone.trim() });
+      }
+      if (!personId) return;
+
+      await addDebt({
+        personId,
+        direction,
+        amount: numAmount,
+        description: description.trim() || undefined,
+      });
     }
 
-    if (!personId) return;
-
-    await addDebt({
-      personId,
-      direction,
-      amount: numAmount,
-      description: description.trim() || undefined,
-    });
-
-    // Reset form
+    // Reset
     setPersonName("");
-    setSelectedPersonId(defaultPersonId || "");
+    setSelectedPersonId("");
     setPhone("");
     setAmount("");
     setDescription("");
+    setMode("friend");
     onClose();
   };
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
+    if (!open) onClose();
   };
 
   const isValid =
@@ -157,74 +191,166 @@ export default function DebtForm({
 
         {/* Person selection */}
         <div className="space-y-3 mb-4">
-          <label className="text-sm font-medium text-foreground">Кто?</label>
-
-          {/* Quick select existing people */}
-          {people.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {people.map((person) => (
-                <button
-                  key={person.id}
-                  onClick={() => {
-                    setSelectedPersonId(
-                      selectedPersonId === person.id ? "" : person.id
-                    );
-                    setPersonName("");
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200",
-                    selectedPersonId === person.id
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
-                  )}
-                >
-                  {person.name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* New person input */}
-          <AnimatePresence>
-            {!selectedPersonId && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-3"
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Кто?</label>
+            <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+              <button
+                onClick={() => setMode("friend")}
+                className={cn(
+                  "px-3 py-1 text-xs rounded-md font-medium transition-colors",
+                  mode === "friend" ? "bg-background shadow-sm" : "text-muted-foreground"
+                )}
               >
-                <Input
-                  placeholder="Имя нового человека"
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
-                  className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
-                />
-                <Input
-                  placeholder="Номер телефона (необязательно)"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
-                />
+                <Users className="w-3 h-3 inline mr-1" /> Друзья
+              </button>
+              <button
+                onClick={() => setMode("manual")}
+                className={cn(
+                  "px-3 py-1 text-xs rounded-md font-medium transition-colors",
+                  mode === "manual" ? "bg-background shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                Вручную
+              </button>
+            </div>
+          </div>
+
+          {/* Friend selector */}
+          <AnimatePresence mode="wait">
+            {mode === "friend" && (
+              <motion.div
+                key="friends"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+              >
+                {friends.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {friends.map((f) => {
+                      const friendUserId = f.userId === user?.id ? f.friendId : f.userId;
+                      const isSelected = selectedPersonId === friendUserId;
+                      const friendName = f.name || "Пользователь";
+                      // Find if this friend already has a person entry via debtStore
+                      const existingPerson = people.find((p) => p.id === friendUserId);
+                      const personId = existingPerson?.id || friendUserId;
+
+                      return (
+                        <button
+                          key={f.id}
+                          onClick={() => {
+                            setSelectedPersonId(
+                              isSelected ? "" : personId
+                            );
+                            setPersonName("");
+                            if (f.phone) setPhone(f.phone);
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                          )}
+                        >
+                          <div className="w-5 h-5 rounded-full overflow-hidden bg-muted shrink-0">
+                            {f.avatar ? (
+                              <img src={f.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className={cn(
+                                "w-full h-full flex items-center justify-center text-[8px] font-bold text-white",
+                                getAvatarColor(friendName)
+                              )}>
+                                {getInitials(friendName)}
+                              </div>
+                            )}
+                          </div>
+                          {friendName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-2 px-3 rounded-xl bg-muted/50">
+                    <Users className="w-3.5 h-3.5 shrink-0" />
+                    Нет друзей в системе. Добавьте друзей или выберите «Вручную»
+                  </div>
+                )}
+
+                {selectedPersonId && mode === "friend" && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Номер телефона (добавить/изменить)"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                    />
+                  </div>
+                )}
               </motion.div>
             )}
-          </AnimatePresence>
 
-          {/* Existing person phone input (if selected) */}
-          <AnimatePresence>
-            {selectedPersonId && (
+            {/* Manual input */}
+            {mode === "manual" && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
+                key="manual"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-3"
               >
-                <Input
-                  placeholder="Номер телефона (добавить/изменить)"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
-                />
+                {/* Quick select existing people (non-friend) */}
+                {people.filter((p) => !isFriendPerson(p.id)).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {people.filter((p) => !isFriendPerson(p.id)).map((person) => (
+                      <button
+                        key={person.id}
+                        onClick={() => {
+                          setSelectedPersonId(
+                            selectedPersonId === person.id ? "" : person.id
+                          );
+                          setPersonName("");
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                          selectedPersonId === person.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                        )}
+                      >
+                        {person.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {!selectedPersonId && (
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Имя человека"
+                      value={personName}
+                      onChange={(e) => setPersonName(e.target.value)}
+                      className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                    />
+                    <Input
+                      placeholder="Номер телефона (необязательно)"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                    />
+                  </div>
+                )}
+                {selectedPersonId && (
+                  <Input
+                    placeholder="Номер телефона (добавить/изменить)"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+                  />
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -232,9 +358,7 @@ export default function DebtForm({
 
         {/* Amount */}
         <div className="space-y-3 mb-4">
-          <label className="text-sm font-medium text-foreground">
-            Сколько?
-          </label>
+          <label className="text-sm font-medium text-foreground">Сколько?</label>
           <div className="relative">
             <Input
               type="number"
@@ -254,9 +378,7 @@ export default function DebtForm({
         <div className="space-y-3 mb-6">
           <label className="text-sm font-medium text-foreground">
             За что?{" "}
-            <span className="text-muted-foreground font-normal">
-              (необязательно)
-            </span>
+            <span className="text-muted-foreground font-normal">(необязательно)</span>
           </label>
           <Input
             placeholder="Обед, такси, билеты..."

@@ -184,19 +184,18 @@ export default function AvatarUpload({ currentUrl, name, size = "xl", onUpdate }
         </button>
       )}
 
-      {/* Upload hint */}
-      <motion.div
-        initial={{ opacity: 0, y: 5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap"
-      >
-        {!avatarUrl && (
-          <p className="text-[10px] text-muted-foreground/60 group-hover:text-muted-foreground/80 transition-colors">
-            Нажмите для загрузки
+      {/* Upload hint — only visible on hover */}
+      {!avatarUrl && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+        >
+          <p className="text-[10px] text-muted-foreground/70 bg-background/80 px-2 py-0.5 rounded-full backdrop-blur-sm">
+            Загрузить фото
           </p>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

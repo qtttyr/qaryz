@@ -1,7 +1,8 @@
+import { useState, useEffect } from "react";
 import { useUserStore } from "@/stores/userStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { supabase } from "@/lib/supabase";
+import { useDebtStore } from "@/stores/debtStore";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +21,17 @@ import {
   Logout01Icon,
   Delete02Icon,
   Mail01Icon,
+  CallIcon,
+  UserIcon,
+  CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons";
 import { Separator } from "@/components/ui/separator";
 import AvatarUpload from "@/components/shared/AvatarUpload";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Share2 } from "lucide-react";
+
+import { supabase } from "@/lib/supabase";
 
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
@@ -35,130 +43,219 @@ export default function ProfilePage() {
 
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const authUpdateProfile = useAuthStore((s) => s.updateProfile);
   const navigate = useNavigate();
 
+  const debts = useDebtStore((s) => s.debts);
+  const payments = useDebtStore((s) => s.payments);
+  const people = useDebtStore((s) => s.people);
+
   const isAuthenticated = !!user;
+
+  // Local state for editable fields
+  const [localName, setLocalName] = useState(profile.name);
+  const [localUsername, setLocalUsername] = useState(profile.username);
+  const [localPhone, setLocalPhone] = useState(profile.phone || "");
+
+  // Sync local state when profile loads
+  useEffect(() => {
+    setLocalName(profile.name);
+    setLocalUsername(profile.username);
+    setLocalPhone(profile.phone || "");
+  }, [profile.name, profile.username, profile.phone]);
+
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Stats
+  const totalPeople = people.length;
+  const totalDebts = debts.filter((d) => !d.settledAt).length;
+  let balance = 0;
+  for (const d of debts) {
+    if (d.settledAt) continue;
+    const paid = payments.filter((p) => p.debtId === d.id).reduce((s, p) => s + p.amount, 0);
+    balance += d.direction === "owed_to_me" ? (d.amount - paid) : -(d.amount - paid);
+  }
 
   const handleLogout = async () => {
     await signOut();
     navigate("/auth", { replace: true });
   };
 
+  const saveProfile = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    setSaveSuccess(false);
+
+    updateProfile({ name: localName, username: localUsername, phone: localPhone || undefined });
+
+    await authUpdateProfile(user.id, {
+      name: localName,
+      username: localUsername,
+      phone: localPhone || undefined,
+    });
+
+    setSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
+  const profileLink = `${window.location.origin}/add-friend?user=${user?.id || ""}`;
+
+  const shareProfile = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Мой профиль в Qaryz`,
+          text: `Добавляй меня в друзья в Qaryz: @${profile.username}`,
+          url: profileLink,
+        });
+      } catch {
+        // user cancelled
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(profileLink);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   return (
     <div className="space-y-8 pb-10">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Профиль</h1>
-        <p className="text-muted-foreground">Настройки приложения и аккаунта</p>
-      </header>
-
-      {/* User Info Section */}
-      <section className="space-y-6">
+      {/* Profile Header — Instagram style */}
+      <div className="flex flex-col items-center pt-4 pb-6">
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-5"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
         >
           <AvatarUpload
             currentUrl={profile.avatar}
-            name={isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
+            name={profile.name}
             size="xl"
             onUpdate={async (url) => {
+              // Local optimisitic update
               updateProfile({ avatar: url });
+              // Persist to Supabase via authStore (includes profiles table)
               if (user?.id) {
-                try {
-                  await supabase.from("profiles").upsert(
-                    { id: user.id, avatar_url: url ?? null },
-                    { onConflict: "id" }
-                  );
-                } catch (err) {
-                  console.error("Failed to save avatar to profiles:", err);
-                }
+                await authUpdateProfile(user.id, {
+                  avatar_url: url ?? null,
+                });
               }
             }}
           />
-          <div className="flex-1 min-w-0 space-y-1">
-            <h2 className="text-xl font-bold truncate">
-              {isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
-            </h2>
-            {isAuthenticated && user?.email && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <HugeiconsIcon icon={Mail01Icon} size={14} />
-                {user.email}
-              </p>
-            )}
-            {!isAuthenticated && (
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            )}
-          </div>
         </motion.div>
 
-        {/* Auth Section */}
-        {isAuthenticated ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="rounded-2xl bg-card border border-border/50 p-4 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium">Аккаунт</p>
-                <p className="text-xs text-muted-foreground">Вы вошли через Supabase</p>
-              </div>
-              <div className="w-2 h-2 rounded-full bg-positive animate-pulse" />
-            </div>
-            <Button
-              variant="outline"
-              className="w-full h-11 rounded-xl gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
-              onClick={handleLogout}
-            >
-              <HugeiconsIcon icon={Logout01Icon} size={18} />
-              Выйти из аккаунта
-            </Button>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="rounded-2xl bg-card border border-border/50 p-4"
-          >
-            <p className="text-sm text-muted-foreground text-center">
-              Данные хранятся локально на устройстве.
-            </p>
-          </motion.div>
+        <h1 className="text-xl font-bold mt-4">{profile.name}</h1>
+        <p className="text-sm text-muted-foreground">@{profile.username}</p>
+
+        {isAuthenticated && user?.email && (
+          <p className="text-xs text-muted-foreground/60 mt-1 flex items-center gap-1">
+            <HugeiconsIcon icon={Mail01Icon} size={12} />
+            {user.email}
+          </p>
         )}
 
+        {profile.phone && (
+          <p className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-1">
+            <HugeiconsIcon icon={CallIcon} size={12} />
+            {profile.phone}
+          </p>
+        )}
+
+        {/* Share profile */}
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" variant="outline" onClick={shareProfile} className="gap-1.5 text-xs">
+            <Share2 className="w-3.5 h-3.5" /> Поделиться профилем
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="mx-4 flex justify-around py-3 px-2 rounded-2xl bg-card border border-border/50">
+        <div className="text-center">
+          <p className="text-lg font-bold">{totalPeople}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Людей</p>
+        </div>
+        <div className="w-px bg-border/50" />
+        <div className="text-center">
+          <p className="text-lg font-bold">{totalDebts}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Активных</p>
+        </div>
+        <div className="w-px bg-border/50" />
+        <div className="text-center">
+          <p className={cn(
+            "text-lg font-bold",
+            balance > 0 ? "text-emerald-500" : balance < 0 ? "text-red-500" : ""
+          )}>
+            {balance > 0 ? "+" : ""}{balance.toLocaleString()} ₸
+          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Баланс</p>
+        </div>
+      </div>
+
+      {/* Edit Profile Section */}
+      <section className="px-4 space-y-4">
         <div className="grid gap-4">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
-              Имя
-            </label>
+          {/* Name */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Имя</label>
+            <div className="relative">
+              <Input
+                value={localName}
+                onChange={(e) => setLocalName(e.target.value)}
+                className="h-11 rounded-xl bg-card border-border/50 pl-9"
+              />
+              <HugeiconsIcon icon={UserIcon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+            </div>
+          </div>
+
+          {/* Username (always editable for now) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">@username</label>
             <Input
-              value={profile.name}
-              onChange={(e) => updateProfile({ name: e.target.value })}
+              value={localUsername}
+              onChange={(e) => setLocalUsername(e.target.value.replace(/\s/g, ""))}
               className="h-11 rounded-xl bg-card border-border/50"
+              placeholder="username"
             />
           </div>
-          {!isAuthenticated && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
-                Username
-              </label>
+
+          {/* Phone */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Телефон</label>
+            <div className="relative">
               <Input
-                value={profile.username}
-                onChange={(e) => updateProfile({ username: e.target.value })}
-                className="h-11 rounded-xl bg-card border-border/50"
+                value={localPhone}
+                onChange={(e) => setLocalPhone(e.target.value)}
+                className="h-11 rounded-xl bg-card border-border/50 pl-9"
+                placeholder="+7 777 000 00 00"
               />
+              <HugeiconsIcon icon={CallIcon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
             </div>
-          )}
+          </div>
+
+          {/* Save button */}
+          <div className="flex gap-2">
+            <Button
+              onClick={saveProfile}
+              disabled={saving}
+              className="flex-1 h-11 rounded-xl gap-1.5"
+            >
+              {saving ? "Сохранение..." : saveSuccess ? (
+                <><HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} /> Сохранено</>
+              ) : "Сохранить"}
+            </Button>
+          </div>
         </div>
       </section>
 
       <Separator className="bg-border/50" />
 
-      {/* App Settings Section */}
-      <section className="space-y-6">
+      {/* App Settings */}
+      <section className="px-4 space-y-6">
         <h3 className="text-sm font-bold flex items-center gap-2">
           <HugeiconsIcon icon={GlobalIcon} size={18} className="text-primary" />
           Приложение
@@ -240,8 +337,28 @@ export default function ProfilePage() {
 
       <Separator className="bg-border/50" />
 
-      {/* Danger Zone */}
-      <section className="space-y-4">
+      {/* Auth section */}
+      <section className="px-4 space-y-4">
+        {isAuthenticated ? (
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleLogout}
+          >
+            <HugeiconsIcon icon={Logout01Icon} size={18} />
+            Выйти из аккаунта
+          </Button>
+        ) : (
+          <Button
+            className="w-full h-12 rounded-xl gap-2"
+            onClick={() => navigate("/auth")}
+          >
+            <HugeiconsIcon icon={Logout01Icon} size={18} />
+            Войти в аккаунт
+          </Button>
+        )}
+
+        {/* Danger Zone */}
         <Button
           variant="destructive"
           className="w-full h-12 rounded-xl gap-2 font-semibold opacity-60 hover:opacity-100 transition-opacity"
@@ -256,10 +373,12 @@ export default function ProfilePage() {
           <HugeiconsIcon icon={Delete02Icon} size={18} />
           Сбросить все данные
         </Button>
-        <p className="text-[10px] text-center text-muted-foreground">
+
+        <p className="text-[10px] text-center text-muted-foreground pt-2">
           Версия 1.0.0-alpha • Сделано с любовью
         </p>
       </section>
     </div>
   );
 }
+

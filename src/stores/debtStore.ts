@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "./authStore";
 import type { Debt, DebtDirection, Payment, Person } from "@/types/debt";
+import type { SharedDebt } from "@/types/friend";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -12,6 +13,7 @@ interface DebtStore {
   debts: Debt[];
   payments: Payment[];
   people: Person[];
+  sharedDebts: SharedDebt[];
   syncStatus: "idle" | "syncing" | "synced" | "error";
 
   addDebt(debt: Omit<Debt, "id" | "createdAt">): Promise<void>;
@@ -24,6 +26,11 @@ interface DebtStore {
   updatePerson(id: string, partial: Partial<Person>): Promise<void>;
   removePerson(personId: string): Promise<void>;
   getPerson(id: string): Person | undefined;
+
+  // Shared debts (friend-to-friend)
+  addSharedDebt(friendUserId: string, amount: number, direction: DebtDirection, description?: string): Promise<void>;
+  settleSharedDebt(debtId: string): Promise<void>;
+  syncSharedDebts: () => Promise<void>;
 
   syncFromSupabase: () => Promise<void>;
   setData: (data: { debts: Debt[]; payments: Payment[]; people: Person[] }) => void;
@@ -41,6 +48,7 @@ export const useDebtStore = create<DebtStore>()(
       debts: [],
       payments: [],
       people: [],
+      sharedDebts: [],
       syncStatus: "idle",
 
       // ── Person CRUD ─────────────────────────────────────
@@ -192,6 +200,200 @@ export const useDebtStore = create<DebtStore>()(
         }
       },
 
+      // ── Shared Debts ────────────────────────────────────
+
+      addSharedDebt: async (friendUserId, amount, direction, description) => {
+        const user = useAuthStore.getState().user;
+        if (!user) throw new Error("Not authenticated");
+
+        const id = generateId();
+
+        // Determine who is debtor (from) and who is creditor (to)
+        // owed_to_me: friend owes me → from = friend, to = me
+        // i_owe: I owe friend → from = me, to = friend
+        const fromUserId = direction === "owed_to_me" ? friendUserId : user.id;
+        const toUserId = direction === "owed_to_me" ? user.id : friendUserId;
+
+        // Insert into Supabase shared_debts table
+        try {
+          await supabase.from("shared_debts").insert({
+            id,
+            from_user_id: fromUserId,
+            to_user_id: toUserId,
+            amount,
+            description: description || null,
+            created_by: user.id,
+          });
+        } catch (e) {
+          console.error("Failed to create shared debt:", e);
+          throw new Error("Не удалось создать долг");
+        }
+
+        // Also create a local Person entry for this friend
+        const existing = get().people.find((p) => p.id === friendUserId);
+        let personId: string;
+        if (existing) {
+          personId = existing.id;
+        } else {
+          // Find friend's name from friendStore
+          const { useFriendStore } = await import("./friendStore");
+          const friend = useFriendStore.getState().getFriend(friendUserId);
+          const newPerson: Person = {
+            id: friendUserId,
+            name: friend?.name || "Пользователь",
+            phone: friend?.phone,
+            createdAt: new Date().toISOString(),
+          };
+          set((s) => ({ people: [...s.people, newPerson] }));
+          personId = newPerson.id;
+        }
+
+        // Create a local debt entry with the correct direction, linked to shared debt
+        const debtId = generateId();
+        const newDebt: Debt = {
+          id: debtId,
+          personId,
+          direction,
+          amount,
+          description: description || undefined,
+          createdAt: new Date().toISOString(),
+          sharedDebtRefId: id, // link to shared_debts.id
+        };
+        set((s) => ({ debts: [...s.debts, newDebt] }));
+
+        // Add shared debt to local state
+        const newShared: SharedDebt = {
+          id,
+          fromUserId,
+          toUserId,
+          amount,
+          description: description || undefined,
+          createdBy: user.id,
+          createdAt: new Date().toISOString(),
+          otherName: undefined, // will be resolved on sync
+          otherUsername: undefined,
+          otherAvatar: undefined,
+        };
+        set((s) => ({ sharedDebts: [...s.sharedDebts, newShared] }));
+      },
+
+      settleSharedDebt: async (debtId) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+
+        set((s) => ({
+          sharedDebts: s.sharedDebts.map((d) =>
+            d.id === debtId ? { ...d, settledAt: new Date().toISOString() } : d
+          ),
+        }));
+
+        try {
+          await supabase
+            .from("shared_debts")
+            .update({ settled_at: new Date().toISOString() })
+            .eq("id", debtId);
+        } catch (e) {
+          console.error("Failed to settle shared debt:", e);
+        }
+      },
+
+      syncSharedDebts: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+
+        try {
+          const { data } = await supabase
+            .from("shared_debts")
+            .select("*, from_profile:profiles!shared_debts_from_user_id_fkey(name, username, avatar_url), to_profile:profiles!shared_debts_to_user_id_fkey(name, username, avatar_url)")
+            .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+            .order("created_at", { ascending: false });
+
+          const fetched = (data || []) as Record<string, unknown>[];
+          const sharedList: SharedDebt[] = [];
+          const newPeople: Person[] = [];
+          const newDebts: Debt[] = [];
+
+          const currentPeople = get().people;
+          const currentDebts = get().debts;
+
+          for (const d of fetched) {
+            const currentUserId = user.id;
+            const isFromMe = d.from_user_id === currentUserId;
+            const otherProfile = isFromMe
+              ? (d.to_profile as Record<string, unknown>) || {}
+              : (d.from_profile as Record<string, unknown>) || {};
+            const otherUserId = isFromMe
+              ? (d.to_user_id as string)
+              : (d.from_user_id as string);
+
+            const sharedDebt: SharedDebt = {
+              id: d.id as string,
+              fromUserId: d.from_user_id as string,
+              toUserId: d.to_user_id as string,
+              amount: Number(d.amount),
+              description: (d.description as string) || undefined,
+              createdBy: d.created_by as string,
+              createdAt: d.created_at as string,
+              settledAt: (d.settled_at as string) || undefined,
+              otherName: otherProfile.name as string,
+              otherUsername: otherProfile.username as string,
+              otherAvatar: otherProfile.avatar_url as string,
+            };
+            sharedList.push(sharedDebt);
+
+            // Ensure Person entry exists for the other user
+            if (!currentPeople.some((p) => p.id === otherUserId)) {
+              const otherName = (otherProfile.name as string) || "Пользователь";
+              const otherPhone = (otherProfile.phone as string) || undefined;
+              newPeople.push({
+                id: otherUserId,
+                name: otherName,
+                phone: otherPhone,
+                createdAt: d.created_at as string,
+              });
+            }
+
+            // Compute direction from current user's perspective
+            // If current user is debtor (fromUserId), direction = i_owe
+            // If current user is creditor (toUserId), direction = owed_to_me
+            const debtDir: DebtDirection =
+              d.from_user_id === currentUserId ? "i_owe" : "owed_to_me";
+
+            // Create local debt entry if one doesn't already exist for this shared debt
+            const existsAsLocalDebt = currentDebts.some(
+              (debt) => debt.sharedDebtRefId === d.id || debt.id === d.id
+            );
+            if (!existsAsLocalDebt) {
+              const newLocalDebtId = generateId();
+              newDebts.push({
+                id: newLocalDebtId,
+                personId: otherUserId,
+                direction: debtDir,
+                amount: Number(d.amount),
+                description: (d.description as string) || undefined,
+                createdAt: d.created_at as string,
+                settledAt: (d.settled_at as string) || undefined,
+                sharedDebtRefId: d.id as string,
+              });
+            }
+          }
+
+          set((s) => ({
+            sharedDebts: sharedList,
+            people: [
+              ...s.people,
+              ...newPeople.filter((np) => !s.people.some((p) => p.id === np.id)),
+            ],
+            debts: [
+              ...s.debts,
+              ...newDebts.filter((nd) => !s.debts.some((d) => d.id === nd.id)),
+            ],
+          }));
+        } catch (e) {
+          console.error("Failed to sync shared debts:", e);
+        }
+      },
+
       // ── Sync ────────────────────────────────────────────
 
       syncFromSupabase: async () => {
@@ -199,6 +401,9 @@ export const useDebtStore = create<DebtStore>()(
         if (!user) return;
 
         set({ syncStatus: "syncing" });
+
+        // Also sync shared debts in parallel
+        get().syncSharedDebts();
 
         try {
           const [personsRes, debtsRes, paymentsRes] = await Promise.all([
@@ -308,6 +513,7 @@ export const useDebtStore = create<DebtStore>()(
         debts: state.debts,
         payments: state.payments,
         people: state.people,
+        sharedDebts: state.sharedDebts,
       }),
     }
   )

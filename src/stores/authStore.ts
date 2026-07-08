@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "./userStore";
+import { useFriendStore } from "./friendStore";
 import type { UserProfile } from "@/types/user";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -17,6 +18,7 @@ interface AuthStore {
   signOut: () => Promise<void>;
   setSession: (session: Session | null) => void;
   syncProfile: () => Promise<void>;
+  updateProfile: (userId: string, data: { name?: string; username?: string; phone?: string; avatar_url?: string | null }) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -30,9 +32,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
       if (session) {
         set({ user: session.user, session, state: "authenticated" });
-        // Sync profile from DB
         const store = useAuthStore.getState();
         await store.syncProfile();
+        // Sync friends after profile
+        useFriendStore.getState().syncFromSupabase();
       } else {
         set({ user: null, session: null, state: "unauthenticated" });
       }
@@ -40,9 +43,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
       supabase.auth.onAuthStateChange((_event, session) => {
         if (session) {
           set({ user: session.user, session, state: "authenticated" });
-          // Sync profile on any auth change
           const store = useAuthStore.getState();
           store.syncProfile();
+          useFriendStore.getState().syncFromSupabase();
         } else {
           set({ user: null, session: null, state: "unauthenticated" });
         }
@@ -59,22 +62,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, username, avatar_url, currency, language")
+        .select("name, username, avatar_url, phone, currency, language")
         .eq("id", currentUser.id)
         .single();
 
       if (profile) {
         const update: Partial<UserProfile> = {
+          id: currentUser.id,
           name: profile.name || (currentUser.user_metadata?.name as string) || "Пользователь",
           username: profile.username || currentUser.email?.split("@")[0] || "user",
           currency: (profile.currency as "KZT" | "RUB" | "USD") || "KZT",
           language: (profile.language as "ru" | "en") || "ru",
         };
-        // Only set avatar if DB has one — never override with undefined
-        if (profile.avatar_url) update.avatar = profile.avatar_url;
+        update.avatar = profile.avatar_url || undefined;
+        update.phone = profile.phone || undefined;
         useUserStore.getState().updateProfile(update);
       } else {
-        // No profile row yet — create one
         const name = (currentUser.user_metadata?.name as string) ||
           currentUser.email?.split("@")[0] || "Пользователь";
         const username = currentUser.email?.split("@")[0] || "user";
@@ -94,7 +97,36 @@ export const useAuthStore = create<AuthStore>((set) => ({
         }
       }
     } catch {
-      // Silent fail — profile works offline
+      // Silent fail
+    }
+  },
+
+  /** Update profile fields in Supabase + local store */
+  updateProfile: async (userId, data) => {
+    // Update local store optimistically
+    const upd: Partial<UserProfile> = {};
+    if (data.name !== undefined) upd.name = data.name;
+    if (data.username !== undefined) upd.username = data.username;
+    if (data.phone !== undefined) upd.phone = data.phone;
+    if (data.avatar_url !== undefined) upd.avatar = data.avatar_url ?? undefined;
+    if (Object.keys(upd).length > 0) {
+      useUserStore.getState().updateProfile({ ...upd, id: userId });
+    }
+
+    // Persist to Supabase
+    try {
+      const dbData: Record<string, string | null> = {};
+      if (data.name !== undefined) dbData.name = data.name;
+      if (data.username !== undefined) dbData.username = data.username;
+      if (data.phone !== undefined) dbData.phone = data.phone;
+      if (data.avatar_url !== undefined) dbData.avatar_url = data.avatar_url;
+
+      await supabase.from("profiles").upsert(
+        { id: userId, ...dbData },
+        { onConflict: "id" }
+      );
+    } catch (e) {
+      console.error("Failed to update profile in Supabase:", e);
     }
   },
 
@@ -122,15 +154,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     if (error) return { error: error.message };
     set({ user: data.user, session: data.session, state: "authenticated" });
-    // Sync profile after login
     await useAuthStore.getState().syncProfile();
+    useFriendStore.getState().syncFromSupabase();
     return {};
   },
 
   signOut: async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem("qaryz-debts");
-    localStorage.removeItem("qaryz-user");
+    // Clear all local data
+    const keys = ["qaryz-debts", "qaryz-user", "qaryz-friends", "qaryz-groups"];
+    for (const k of keys) localStorage.removeItem(k);
+    useFriendStore.getState().reset();
     set({ user: null, session: null, state: "unauthenticated" });
   },
 

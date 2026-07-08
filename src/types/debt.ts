@@ -8,6 +8,7 @@ export interface Debt {
   description?: string;
   createdAt: string; // ISO date
   settledAt?: string; // ISO date — when fully settled
+  sharedDebtRefId?: string; // links to shared_debts.id (for friend-to-friend debts)
 }
 
 export interface Payment {

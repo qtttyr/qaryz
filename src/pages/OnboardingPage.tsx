@@ -1,14 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AiMagicIcon,
   ArrowRight01Icon,
   CheckmarkCircle01Icon,
+  UserIcon,
+  TelephoneIcon,
+  Loading04Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/authStore";
 
 // ─── Screens ───────────────────────────────────────────────
 
@@ -27,6 +33,10 @@ const SCREENS = [
   },
   {
     id: "install",
+    duration: null, // manual
+  },
+  {
+    id: "profile",
     duration: null, // manual
   },
 ];
@@ -489,6 +499,210 @@ function InstallScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ─── Screen 5: Profile Setup ───────────────────────────────
+
+function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const user = useAuthStore((s) => s.user);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const currentUsername = user?.email?.split("@")[0] || "";
+
+  // Debounced username uniqueness check
+  useEffect(() => {
+    if (!username.trim() || !usernameTouched) {
+      setUsernameError("");
+      return;
+    }
+
+    if (username.length < 3) {
+      setUsernameError("Минимум 3 символа");
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError("Только латиница, цифры и _");
+      return;
+    }
+
+    // Skip DB check if not authenticated (onboarding before auth)
+    if (!user?.id) {
+      setUsernameError("");
+      setChecking(false);
+      return;
+    }
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setChecking(true);
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", username.trim())
+          .neq("id", user.id)
+          .maybeSingle();
+
+        if (data) {
+          setUsernameError("Этот username уже занят");
+        } else {
+          setUsernameError("");
+        }
+      } catch {
+        setUsernameError("Не удалось проверить");
+      }
+      setChecking(false);
+    }, 500);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [username, usernameTouched, user?.id]);
+
+  const isUsernameValid =
+    usernameTouched &&
+    username.trim().length >= 3 &&
+    /^[a-zA-Z0-9_]+$/.test(username) &&
+    !usernameError &&
+    !checking;
+
+  const handleFinish = async () => {
+    // Save username and phone to profile
+    if (user && isUsernameValid) {
+      await updateProfile(user.id, {
+        username: username.trim(),
+        phone: phone.trim() || undefined,
+      });
+    }
+    onDone();
+  };
+
+  return (
+    <div className="flex flex-col h-full justify-center items-center gap-6 px-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: "spring", damping: 18, stiffness: 160 }}
+        className="w-full max-w-xs"
+      >
+        {/* Title */}
+        <div className="text-center mb-8">
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <h2 className="text-2xl font-bold">Заполните профиль</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Друзьям будет легче вас найти
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Username field */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2 mb-4"
+        >
+          <label className="text-xs font-medium text-muted-foreground tracking-wider uppercase">
+            Username
+          </label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60">
+              @
+            </div>
+            <Input
+              placeholder={currentUsername}
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (!usernameTouched) setUsernameTouched(true);
+              }}
+              className={cn(
+                "h-12 pl-8 pr-10 rounded-xl bg-muted/50 border-border/50 text-base",
+                usernameError && usernameTouched
+                  ? "border-destructive/50 focus-visible:ring-destructive/30"
+                  : isUsernameValid
+                    ? "border-positive/50"
+                    : ""
+              )}
+            />
+            {/* Status indicator */}
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+              {checking ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <HugeiconsIcon icon={Loading04Icon} size={16} className="text-muted-foreground/60" />
+                </motion.div>
+              ) : usernameTouched && username.trim().length >= 3 && !usernameError ? (
+                <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-positive" />
+              ) : null}
+            </div>
+          </div>
+          {usernameError && usernameTouched && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xs text-destructive"
+            >
+              {usernameError}
+            </motion.p>
+          )}
+          <p className="text-[10px] text-muted-foreground/50">
+            Будет отображаться как @username
+          </p>
+        </motion.div>
+
+        {/* Phone field */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-2 mb-6"
+        >
+          <label className="text-xs font-medium text-muted-foreground tracking-wider uppercase">
+            Телефон{" "}
+            <span className="font-normal text-muted-foreground/50">(необязательно)</span>
+          </label>
+          <Input
+            type="tel"
+            placeholder="+7 777 123 45 67"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="h-12 rounded-xl bg-muted/50 border-border/50 text-base"
+          />
+          <p className="text-[10px] text-muted-foreground/50">
+            Для поиска друзей по номеру
+          </p>
+        </motion.div>
+
+        {/* Action button */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Button
+            onClick={handleFinish}
+            disabled={!isUsernameValid}
+            className="w-full h-12 rounded-xl text-base gap-2 font-semibold"
+          >
+            {checking ? "Проверяем..." : "Готово"}
+            {!checking && <HugeiconsIcon icon={ArrowRight01Icon} size={18} />}
+          </Button>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main Onboarding Component ─────────────────────────────
 
 export default function OnboardingPage() {
@@ -599,7 +813,20 @@ export default function OnboardingPage() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-sm px-6"
           >
-            <InstallScreen onDone={finish} />
+            <InstallScreen onDone={next} />
+          </motion.div>
+        )}
+
+        {SCREENS[screen].id === "profile" && (
+          <motion.div
+            key="profile"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-sm px-6"
+          >
+            <ProfileSetupScreen onDone={finish} />
           </motion.div>
         )}
       </AnimatePresence>

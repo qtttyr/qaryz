@@ -22,6 +22,7 @@ export default function AppLayout() {
 
   const isPersonDetail = location.pathname.startsWith("/person/");
   const isGroupPage = location.pathname.startsWith("/groups");
+  const isFriendPage = location.pathname.startsWith("/friends");
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -60,8 +61,8 @@ export default function AppLayout() {
       {/* Desktop top padding when top bar present */}
       {!isMobile && !isPersonDetail && <div className="h-16" />}
 
-      {/* Floating add button */}
-      {!isPersonDetail && !isGroupPage && <FloatingAddButton />}
+      {/* Floating add button — hide on detail pages */}
+      {!isPersonDetail && !isGroupPage && !isFriendPage && <FloatingAddButton />}
 
       {/* DebtForm Modal/Sheet */}
       <DebtForm

@@ -5,6 +5,7 @@ export interface UserProfile {
   name: string;
   username: string;
   avatar?: string;
+  phone?: string;
   currency: string; // "KZT" | "RUB" | "USD"
   language: "ru" | "en";
 }

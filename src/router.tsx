@@ -12,6 +12,9 @@ import ProfilePage from "@/pages/ProfilePage";
 import GroupsPage from "@/pages/GroupsPage";
 import GroupDetailPage from "@/pages/GroupDetailPage";
 import JoinPage from "@/pages/JoinPage";
+import AddFriendPage from "@/pages/AddFriendPage";
+import FriendsPage from "@/pages/FriendsPage";
+import FriendProfilePage from "@/pages/FriendProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -31,6 +34,14 @@ export const router = createBrowserRouter([
     element: <JoinPage />,
   },
   {
+    path: "/add-friend",
+    element: <AddFriendPage />,
+  },
+  {
+    path: "/add-friend/:userId",
+    element: <AddFriendPage />,
+  },
+  {
     element: (
       <ProtectedRoute>
         <OnboardingGate>
@@ -42,6 +53,8 @@ export const router = createBrowserRouter([
       { index: true, element: <OwedToMePage /> },
       { path: "i-owe", element: <IOwePage /> },
       { path: "person/:id", element: <PersonDetailPage /> },
+      { path: "friends", element: <FriendsPage /> },
+      { path: "friends/:id", element: <FriendProfilePage /> },
       { path: "groups", element: <GroupsPage /> },
       { path: "groups/:id", element: <GroupDetailPage /> },
       { path: "analytics", element: <AnalyticsPage /> },
