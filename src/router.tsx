@@ -11,6 +11,7 @@ import AnalyticsPage from "@/pages/AnalyticsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import GroupsPage from "@/pages/GroupsPage";
 import GroupDetailPage from "@/pages/GroupDetailPage";
+import JoinPage from "@/pages/JoinPage";
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
   {
     path: "/onboarding",
     element: <OnboardingPage />,
+  },
+  {
+    path: "/join",
+    element: <JoinPage />,
   },
   {
     element: (

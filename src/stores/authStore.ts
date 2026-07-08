@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "./userStore";
+import type { UserProfile } from "@/types/user";
 import type { User, Session } from "@supabase/supabase-js";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
@@ -63,13 +64,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
         .single();
 
       if (profile) {
-        useUserStore.getState().updateProfile({
-          name: profile.name || currentUser.user_metadata?.name as string || "Пользователь",
+        const update: Partial<UserProfile> = {
+          name: profile.name || (currentUser.user_metadata?.name as string) || "Пользователь",
           username: profile.username || currentUser.email?.split("@")[0] || "user",
-          avatar: profile.avatar_url || undefined,
           currency: (profile.currency as "KZT" | "RUB" | "USD") || "KZT",
           language: (profile.language as "ru" | "en") || "ru",
-        });
+        };
+        // Only set avatar if DB has one — never override with undefined
+        if (profile.avatar_url) update.avatar = profile.avatar_url;
+        useUserStore.getState().updateProfile(update);
       } else {
         // No profile row yet — create one
         const name = (currentUser.user_metadata?.name as string) ||

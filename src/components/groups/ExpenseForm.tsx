@@ -43,6 +43,7 @@ export function ExpenseForm({ groupId, onClose }: ExpenseFormProps) {
   const [splitMode, setSplitMode] = useState<"equal" | "custom">("equal");
   const [customShares, setCustomShares] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const memberProfiles = members.map((m) => ({
     id: m.userId,
@@ -69,12 +70,14 @@ export function ExpenseForm({ groupId, onClose }: ExpenseFormProps) {
       return; // Shares don't add up
     }
 
+    setError("");
     setSubmitting(true);
     try {
       await addExpense(groupId, paidBy, totalAmount, description.trim(), category, splitMode, shares);
       onClose();
     } catch (e) {
       console.error(e);
+      setError("Не удалось добавить расход. Попробуйте ещё раз.");
     } finally {
       setSubmitting(false);
     }
@@ -210,6 +213,12 @@ export function ExpenseForm({ groupId, onClose }: ExpenseFormProps) {
             : "text-red-500"
         )}>
           {totalCustom.toLocaleString()} ₸ из {totalAmount.toLocaleString()} ₸
+        </p>
+      )}
+
+      {error && (
+        <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">
+          {error}
         </p>
       )}
 

@@ -62,11 +62,17 @@ export default function ProfilePage() {
             currentUrl={profile.avatar}
             name={isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
             size="xl"
-            onUpdate={(url) => {
+            onUpdate={async (url) => {
               updateProfile({ avatar: url });
-              // Persist to Supabase profiles table so it survives logout
               if (user?.id) {
-                supabase.from("profiles").upsert({ id: user.id, avatar_url: url }).then();
+                try {
+                  await supabase.from("profiles").upsert(
+                    { id: user.id, avatar_url: url ?? null },
+                    { onConflict: "id" }
+                  );
+                } catch (err) {
+                  console.error("Failed to save avatar to profiles:", err);
+                }
               }
             }}
           />
