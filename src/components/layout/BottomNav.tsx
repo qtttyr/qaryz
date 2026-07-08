@@ -39,9 +39,12 @@ export default function BottomNav({ variant = "bottom" }: BottomNavProps) {
     return (
       <nav className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-1">
-          <span className="text-lg font-bold bg-linear-to-r from-primary to-electric bg-clip-text text-transparent mr-4">
-            Qaryz
-          </span>
+          <div className="flex items-center gap-2 mr-4">
+            <img src="/Q.png" alt="" className="w-6 h-6 object-contain" />
+            <span className="text-lg font-bold bg-linear-to-r from-primary to-electric bg-clip-text text-transparent">
+              Qaryz
+            </span>
+          </div>
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (

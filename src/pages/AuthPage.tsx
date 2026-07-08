@@ -58,9 +58,13 @@ export default function AuthPage() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.4 }}
-            className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-4"
+            className="w-16 h-16 mx-auto mb-4"
           >
-            <span className="text-3xl font-black text-primary">Q</span>
+            <img
+              src="/Q.png"
+              alt="Qaryz"
+              className="w-full h-full object-contain drop-shadow-lg"
+            />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0 }}
