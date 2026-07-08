@@ -60,11 +60,11 @@ export const useFriendStore = create<FriendStore>()(
 
           for (const r of (friendsRes1.data || [])) {
             friendIds.add(r.friend_id as string);
-            rawFriends.push(r as { id: string; userId: string; friendId: string; createdAt: string });
+            rawFriends.push({ id: r.id as string, userId: r.user_id as string, friendId: r.friend_id as string, createdAt: r.created_at as string });
           }
           for (const r of (friendsRes2.data || [])) {
             friendIds.add(r.user_id as string);
-            rawFriends.push(r as { id: string; userId: string; friendId: string; createdAt: string });
+            rawFriends.push({ id: r.id as string, userId: r.user_id as string, friendId: r.friend_id as string, createdAt: r.created_at as string });
           }
 
           // Step 2 — fetch profiles for all friend IDs
