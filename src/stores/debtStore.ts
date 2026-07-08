@@ -302,13 +302,35 @@ export const useDebtStore = create<DebtStore>()(
         if (!user) return;
 
         try {
-          const { data } = await supabase
+          // Step 1: fetch raw shared_debts without FK joins
+          const { data: raw } = await supabase
             .from("shared_debts")
-            .select("*, from_profile:profiles!shared_debts_from_user_id_fkey(name, username, avatar_url), to_profile:profiles!shared_debts_to_user_id_fkey(name, username, avatar_url)")
+            .select("*")
             .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
             .order("created_at", { ascending: false });
 
-          const fetched = (data || []) as Record<string, unknown>[];
+          const rows = (raw || []) as Record<string, unknown>[];
+          if (rows.length === 0) return;
+
+          // Step 2: collect all user IDs we need profiles for
+          const userIds = new Set<string>();
+          for (const r of rows) {
+            if (r.from_user_id) userIds.add(r.from_user_id as string);
+            if (r.to_user_id) userIds.add(r.to_user_id as string);
+          }
+
+          // Step 3: batch-fetch profiles
+          const { data: profilesRaw } = await supabase
+            .from("profiles")
+            .select("id, name, username, avatar_url, phone")
+            .in("id", Array.from(userIds));
+
+          const profileMap: Record<string, Record<string, unknown>> = {};
+          for (const p of (profilesRaw || []) as Record<string, unknown>[]) {
+            profileMap[p.id as string] = p;
+          }
+
+          // Step 4: build local state
           const sharedList: SharedDebt[] = [];
           const newPeople: Person[] = [];
           const newDebts: Debt[] = [];
@@ -316,15 +338,13 @@ export const useDebtStore = create<DebtStore>()(
           const currentPeople = get().people;
           const currentDebts = get().debts;
 
-          for (const d of fetched) {
+          for (const d of rows) {
             const currentUserId = user.id;
             const isFromMe = d.from_user_id === currentUserId;
-            const otherProfile = isFromMe
-              ? (d.to_profile as Record<string, unknown>) || {}
-              : (d.from_profile as Record<string, unknown>) || {};
             const otherUserId = isFromMe
               ? (d.to_user_id as string)
               : (d.from_user_id as string);
+            const otherProfile = profileMap[otherUserId] || {};
 
             const sharedDebt: SharedDebt = {
               id: d.id as string,
@@ -337,36 +357,31 @@ export const useDebtStore = create<DebtStore>()(
               settledAt: (d.settled_at as string) || undefined,
               otherName: otherProfile.name as string,
               otherUsername: otherProfile.username as string,
-              otherAvatar: otherProfile.avatar_url as string,
+              otherAvatar: (otherProfile.avatar_url as string) || undefined,
             };
             sharedList.push(sharedDebt);
 
             // Ensure Person entry exists for the other user
             if (!currentPeople.some((p) => p.id === otherUserId)) {
-              const otherName = (otherProfile.name as string) || "Пользователь";
-              const otherPhone = (otherProfile.phone as string) || undefined;
               newPeople.push({
                 id: otherUserId,
-                name: otherName,
-                phone: otherPhone,
+                name: (otherProfile.name as string) || "Пользователь",
+                phone: (otherProfile.phone as string) || undefined,
                 createdAt: d.created_at as string,
               });
             }
 
             // Compute direction from current user's perspective
-            // If current user is debtor (fromUserId), direction = i_owe
-            // If current user is creditor (toUserId), direction = owed_to_me
             const debtDir: DebtDirection =
               d.from_user_id === currentUserId ? "i_owe" : "owed_to_me";
 
-            // Create local debt entry if one doesn't already exist for this shared debt
+            // Create local debt entry if one doesn't already exist
             const existsAsLocalDebt = currentDebts.some(
               (debt) => debt.sharedDebtRefId === d.id || debt.id === d.id
             );
             if (!existsAsLocalDebt) {
-              const newLocalDebtId = generateId();
               newDebts.push({
-                id: newLocalDebtId,
+                id: generateId(),
                 personId: otherUserId,
                 direction: debtDir,
                 amount: Number(d.amount),
@@ -402,14 +417,12 @@ export const useDebtStore = create<DebtStore>()(
 
         set({ syncStatus: "syncing" });
 
-        // Also sync shared debts in parallel
-        get().syncSharedDebts();
-
         try {
           const [personsRes, debtsRes, paymentsRes] = await Promise.all([
             supabase.from("persons").select("*").eq("user_id", user.id),
             supabase.from("debts").select("*").eq("user_id", user.id),
             supabase.from("payments").select("*").eq("user_id", user.id),
+            get().syncSharedDebts(), // await shared debts too
           ]);
 
           const localState = get();
@@ -437,6 +450,7 @@ export const useDebtStore = create<DebtStore>()(
               createdAt: d.created_at as string,
               settledAt: (d.settled_at as string) || undefined,
             })),
+            // Keep local debts (including shared debt entries added by syncSharedDebts)
             ...localState.debts.filter((d) => !serverDebtIds.has(d.id)),
           ];
 

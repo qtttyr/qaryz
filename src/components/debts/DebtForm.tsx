@@ -56,12 +56,20 @@ export default function DebtForm({
   useEffect(() => {
     if (selectedPersonId) {
       const person = people.find((p) => p.id === selectedPersonId);
-      if (person && person.phone) setPhone(person.phone);
-      else setPhone("");
+      if (person?.phone) {
+        setPhone(person.phone);
+        return;
+      }
+      // Fallback: check friendStore for phone
+      const friend = friends.find((f) => {
+        const otherId = f.userId === user?.id ? f.friendId : f.userId;
+        return otherId === selectedPersonId;
+      });
+      setPhone(friend?.phone || "");
     } else {
       setPhone("");
     }
-  }, [selectedPersonId, people]);
+  }, [selectedPersonId, people, friends, user?.id]);
 
   // When friends update, pre-select if we have matching person
   useEffect(() => {
@@ -268,10 +276,10 @@ export default function DebtForm({
                   </div>
                 )}
 
-                {selectedPersonId && mode === "friend" && (
+                {selectedPersonId && mode === "friend" && !phone && (
                   <div className="mt-2">
                     <Input
-                      placeholder="Номер телефона (добавить/изменить)"
+                      placeholder="Номер телефона (для напоминаний)"
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
