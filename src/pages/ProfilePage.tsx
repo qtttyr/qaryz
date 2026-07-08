@@ -1,5 +1,7 @@
 import { useUserStore } from "@/stores/userStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,9 +17,12 @@ import {
   Sun01Icon,
   GlobalIcon,
   Logout01Icon,
+  Delete02Icon,
+  Mail01Icon,
 } from "@hugeicons/core-free-icons";
 import { Separator } from "@/components/ui/separator";
 import { getInitials } from "@/lib/formatters";
+import { motion } from "framer-motion";
 
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
@@ -26,6 +31,17 @@ export default function ProfilePage() {
 
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+
+  const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
+  const navigate = useNavigate();
+
+  const isAuthenticated = !!user;
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   return (
     <div className="space-y-8 pb-10">
@@ -36,40 +52,94 @@ export default function ProfilePage() {
 
       {/* User Info Section */}
       <section className="space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-primary to-electric flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-primary/20">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-primary to-electric flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-primary/20 shrink-0">
             {profile.avatar ? (
               <img src={profile.avatar} className="w-full h-full rounded-3xl object-cover" alt="" />
             ) : (
-              getInitials(profile.name)
+              getInitials(isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name)
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold truncate">{profile.name}</h2>
-            <p className="text-muted-foreground text-sm">@{profile.username}</p>
-            <Button variant="link" className="px-0 h-auto text-xs text-primary mt-1">
-              Изменить фото
-            </Button>
+          <div className="flex-1 min-w-0 space-y-1">
+            <h2 className="text-xl font-bold truncate">
+              {isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
+            </h2>
+            {isAuthenticated && user?.email && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <HugeiconsIcon icon={Mail01Icon} size={14} />
+                {user.email}
+              </p>
+            )}
+            {!isAuthenticated && (
+              <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            )}
           </div>
-        </div>
+        </motion.div>
+
+        {/* Auth Section */}
+        {isAuthenticated ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-2xl bg-card border border-border/50 p-4 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Аккаунт</p>
+                <p className="text-xs text-muted-foreground">Вы вошли через Supabase</p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-positive animate-pulse" />
+            </div>
+            <Button
+              variant="outline"
+              className="w-full h-11 rounded-xl gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <HugeiconsIcon icon={Logout01Icon} size={18} />
+              Выйти из аккаунта
+            </Button>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-2xl bg-card border border-border/50 p-4"
+          >
+            <p className="text-sm text-muted-foreground text-center">
+              Данные хранятся локально на устройстве.
+            </p>
+          </motion.div>
+        )}
 
         <div className="grid gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Имя</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
+              Имя
+            </label>
             <Input
               value={profile.name}
               onChange={(e) => updateProfile({ name: e.target.value })}
               className="h-11 rounded-xl bg-card border-border/50"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Username</label>
-            <Input
-              value={profile.username}
-              onChange={(e) => updateProfile({ username: e.target.value })}
-              className="h-11 rounded-xl bg-card border-border/50"
-            />
-          </div>
+          {!isAuthenticated && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
+                Username
+              </label>
+              <Input
+                value={profile.username}
+                onChange={(e) => updateProfile({ username: e.target.value })}
+                className="h-11 rounded-xl bg-card border-border/50"
+              />
+            </div>
+          )}
         </div>
       </section>
 
@@ -83,6 +153,7 @@ export default function ProfilePage() {
         </h3>
 
         <div className="grid gap-6">
+          {/* Theme */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Тема оформления</p>
@@ -91,19 +162,28 @@ export default function ProfilePage() {
             <div className="flex bg-muted p-1 rounded-lg">
               <button
                 onClick={() => setTheme("light")}
-                className={`p-1.5 rounded-md transition-all ${theme === "light" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+                className={`p-1.5 rounded-md transition-all ${
+                  theme === "light"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground"
+                }`}
               >
                 <HugeiconsIcon icon={Sun01Icon} size={16} />
               </button>
               <button
                 onClick={() => setTheme("dark")}
-                className={`p-1.5 rounded-md transition-all ${theme === "dark" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+                className={`p-1.5 rounded-md transition-all ${
+                  theme === "dark"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground"
+                }`}
               >
                 <HugeiconsIcon icon={MoonIcon} size={16} />
               </button>
             </div>
           </div>
 
+          {/* Currency */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Валюта</p>
@@ -124,6 +204,7 @@ export default function ProfilePage() {
             </Select>
           </div>
 
+          {/* Language */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Язык</p>
@@ -131,7 +212,7 @@ export default function ProfilePage() {
             </div>
             <Select
               value={profile.language}
-              onValueChange={(val: any) => updateProfile({ language: val })}
+              onValueChange={(val) => updateProfile({ language: val as "ru" | "en" })}
             >
               <SelectTrigger className="w-24 h-9 rounded-lg border-border/50 bg-card">
                 <SelectValue />
@@ -151,7 +232,7 @@ export default function ProfilePage() {
       <section className="space-y-4">
         <Button
           variant="destructive"
-          className="w-full h-12 rounded-xl gap-2 font-semibold"
+          className="w-full h-12 rounded-xl gap-2 font-semibold opacity-60 hover:opacity-100 transition-opacity"
           onClick={() => {
             if (confirm("Вы уверены? Все данные будут удалены безвозвратно.")) {
               resetProfile();
@@ -160,7 +241,7 @@ export default function ProfilePage() {
             }
           }}
         >
-          <HugeiconsIcon icon={Logout01Icon} size={18} />
+          <HugeiconsIcon icon={Delete02Icon} size={18} />
           Сбросить все данные
         </Button>
         <p className="text-[10px] text-center text-muted-foreground">

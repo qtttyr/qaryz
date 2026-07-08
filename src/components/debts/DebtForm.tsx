@@ -63,7 +63,7 @@ export default function DebtForm({
     USD: "$",
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) return;
 
@@ -71,14 +71,14 @@ export default function DebtForm({
 
     // Create new person if needed
     if (!personId && personName.trim()) {
-      personId = addPerson(personName.trim(), phone.trim() || undefined);
+      personId = await addPerson(personName.trim(), phone.trim() || undefined);
     } else if (personId && phone.trim()) {
       updatePerson(personId, { phone: phone.trim() });
     }
 
     if (!personId) return;
 
-    addDebt({
+    await addDebt({
       personId,
       direction,
       amount: numAmount,
