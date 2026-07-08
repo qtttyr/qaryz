@@ -9,6 +9,8 @@ import IOwePage from "@/pages/IOwePage";
 import PersonDetailPage from "@/pages/PersonDetailPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import ProfilePage from "@/pages/ProfilePage";
+import GroupsPage from "@/pages/GroupsPage";
+import GroupDetailPage from "@/pages/GroupDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +37,8 @@ export const router = createBrowserRouter([
       { index: true, element: <OwedToMePage /> },
       { path: "i-owe", element: <IOwePage /> },
       { path: "person/:id", element: <PersonDetailPage /> },
+      { path: "groups", element: <GroupsPage /> },
+      { path: "groups/:id", element: <GroupDetailPage /> },
       { path: "analytics", element: <AnalyticsPage /> },
       { path: "profile", element: <ProfilePage /> },
     ],

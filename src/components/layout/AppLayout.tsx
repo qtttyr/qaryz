@@ -21,6 +21,7 @@ export default function AppLayout() {
   const closeModal = useUIStore((s) => s.closeModal);
 
   const isPersonDetail = location.pathname.startsWith("/person/");
+  const isGroupPage = location.pathname.startsWith("/groups");
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -60,7 +61,7 @@ export default function AppLayout() {
       {!isMobile && !isPersonDetail && <div className="h-16" />}
 
       {/* Floating add button */}
-      {!isPersonDetail && <FloatingAddButton />}
+      {!isPersonDetail && !isGroupPage && <FloatingAddButton />}
 
       {/* DebtForm Modal/Sheet */}
       <DebtForm
