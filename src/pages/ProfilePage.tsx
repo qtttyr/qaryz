@@ -21,7 +21,7 @@ import {
   Mail01Icon,
 } from "@hugeicons/core-free-icons";
 import { Separator } from "@/components/ui/separator";
-import { getInitials } from "@/lib/formatters";
+import AvatarUpload from "@/components/shared/AvatarUpload";
 import { motion } from "framer-motion";
 
 export default function ProfilePage() {
@@ -55,15 +55,14 @@ export default function ProfilePage() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4"
+          className="flex items-center gap-5"
         >
-          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-primary to-electric flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-primary/20 shrink-0">
-            {profile.avatar ? (
-              <img src={profile.avatar} className="w-full h-full rounded-3xl object-cover" alt="" />
-            ) : (
-              getInitials(isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name)
-            )}
-          </div>
+          <AvatarUpload
+            currentUrl={profile.avatar}
+            name={isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
+            size="xl"
+            onUpdate={(url) => updateProfile({ avatar: url })}
+          />
           <div className="flex-1 min-w-0 space-y-1">
             <h2 className="text-xl font-bold truncate">
               {isAuthenticated ? (user?.user_metadata?.name as string) || profile.name : profile.name}
