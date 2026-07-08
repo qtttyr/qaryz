@@ -4,7 +4,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Home01Icon,
   Money01Icon,
-  UserGroup02Icon,
   ChartBarLineIcon,
   User03Icon,
 } from "@hugeicons/core-free-icons";
@@ -19,7 +18,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: "/", label: "Мне должны", icon: Home01Icon },
   { path: "/i-owe", label: "Я должен", icon: Money01Icon },
-  { path: "/groups", label: "Группы", icon: UserGroup02Icon },
   { path: "/analytics", label: "Аналитика", icon: ChartBarLineIcon },
   { path: "/profile", label: "Профиль", icon: User03Icon },
 ];
