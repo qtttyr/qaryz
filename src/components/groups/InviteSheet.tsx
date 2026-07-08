@@ -10,7 +10,7 @@ interface InviteSheetProps {
   groupName: string;
 }
 
-export function InviteSheet({ groupId, inviteCode, groupName }: InviteSheetProps) {
+export function InviteSheet({ groupId: _groupId, inviteCode, groupName }: InviteSheetProps) {
   const [copied, setCopied] = useState(false);
   const [inviteInput, setInviteInput] = useState("");
   const [joinError, setJoinError] = useState("");

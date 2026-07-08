@@ -14,7 +14,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ArrowLeft, Plus, Share2, MoreHorizontal, LogIn } from "lucide-react";
+import { ArrowLeft, Plus, Share2, LogIn } from "lucide-react";
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();

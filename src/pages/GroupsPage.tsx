@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGroups } from "@/hooks/useGroups";
 import { GroupCard } from "@/components/groups/GroupCard";
-import { InviteSheet } from "@/components/groups/InviteSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,14 +9,12 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -41,7 +38,6 @@ export default function GroupsPage() {
   const isMobile = useIsMobile();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [showInvite, setShowInvite] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "name" | "amount">("recent");
   const [createName, setCreateName] = useState("");
@@ -89,10 +85,6 @@ export default function GroupsPage() {
   const ContainerContent = isMobile ? SheetContent : DialogContent;
   const ContainerHeader = isMobile ? SheetHeader : DialogHeader;
   const ContainerTitle = isMobile ? SheetTitle : DialogTitle;
-  const ContainerTrigger = isMobile ? SheetTrigger : DialogTrigger;
-
-  // For invite sheet, we need the currently selected group
-  const [inviteGroup, setInviteGroup] = useState<{ id: string; name: string; inviteCode: string } | null>(null);
 
   return (
     <div className="flex flex-col h-full">

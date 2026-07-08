@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { MemberAvatar } from "./MemberAvatar";
-import { X, Plus, Equal, Settings2 } from "lucide-react";
+import { Equal, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ExpenseFormProps {
