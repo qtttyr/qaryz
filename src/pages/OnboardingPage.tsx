@@ -505,7 +505,7 @@ function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
   const [usernameError, setUsernameError] = useState("");
   const [checking, setChecking] = useState(false);
   const [usernameTouched, setUsernameTouched] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const user = useAuthStore((s) => s.user);
   const updateProfile = useAuthStore((s) => s.updateProfile);
