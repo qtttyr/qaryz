@@ -48,46 +48,52 @@ export const useFriendStore = create<FriendStore>()(
         set({ syncStatus: "syncing" });
 
         try {
-          // ── Friends (bidirectional) ──
+          // ── Friends: Step 1 — fetch raw rows (no FK joins — avoids 400) ──
           const [friendsRes1, friendsRes2] = await Promise.all([
-            supabase
-              .from("friends")
-              .select("id, user_id, friend_id, created_at, profiles!friends_friend_id_fkey(name, username, avatar_url, phone)")
-              .eq("user_id", user.id),
-            supabase
-              .from("friends")
-              .select("id, user_id, friend_id, created_at, profiles!friends_user_id_fkey(name, username, avatar_url, phone)")
-              .eq("friend_id", user.id),
+            supabase.from("friends").select("id, user_id, friend_id, created_at").eq("user_id", user.id),
+            supabase.from("friends").select("id, user_id, friend_id, created_at").eq("friend_id", user.id),
           ]);
 
-          const friendsList: Friend[] = [
-            ...(friendsRes1.data || []).map((r: Record<string, unknown>) => {
-              const p = (r.profiles as Record<string, unknown>) || {};
-              return {
-                id: r.id as string,
-                userId: r.user_id as string,
-                friendId: r.friend_id as string,
-                createdAt: r.created_at as string,
-                name: p.name as string,
-                username: p.username as string,
-                avatar: p.avatar_url as string,
-                phone: p.phone as string,
-              };
-            }),
-            ...(friendsRes2.data || []).map((r: Record<string, unknown>) => {
-              const p = (r.profiles as Record<string, unknown>) || {};
-              return {
-                id: r.id as string,
-                userId: r.user_id as string,
-                friendId: r.friend_id as string,
-                createdAt: r.created_at as string,
-                name: p.name as string,
-                username: p.username as string,
-                avatar: p.avatar_url as string,
-                phone: p.phone as string,
-              };
-            }),
-          ];
+          // Collect all "other person" user IDs + raw friend rows
+          const friendIds = new Set<string>();
+          const rawFriends: { id: string; userId: string; friendId: string; createdAt: string }[] = [];
+
+          for (const r of (friendsRes1.data || [])) {
+            friendIds.add(r.friend_id as string);
+            rawFriends.push(r as { id: string; userId: string; friendId: string; createdAt: string });
+          }
+          for (const r of (friendsRes2.data || [])) {
+            friendIds.add(r.user_id as string);
+            rawFriends.push(r as { id: string; userId: string; friendId: string; createdAt: string });
+          }
+
+          // Step 2 — fetch profiles for all friend IDs
+          const friendProfiles: Record<string, { name?: string; username?: string; avatar_url?: string; phone?: string }> = {};
+          if (friendIds.size > 0) {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, name, username, avatar_url, phone")
+              .in("id", [...friendIds]);
+            for (const p of (profiles || [])) {
+              friendProfiles[p.id as string] = p as { name?: string; username?: string; avatar_url?: string; phone?: string };
+            }
+          }
+
+          // Step 3 — merge profiles with friend rows
+          const friendsList: Friend[] = rawFriends.map((r) => {
+            const otherId = r.userId === user.id ? r.friendId : r.userId;
+            const p = friendProfiles[otherId] || {};
+            return {
+              id: r.id,
+              userId: r.userId,
+              friendId: r.friendId,
+              createdAt: r.createdAt,
+              name: p.name || "Пользователь",
+              username: p.username || "user",
+              avatar: p.avatar_url,
+              phone: p.phone,
+            };
+          });
 
           // Deduplicate by friend's user ID (the "other" person)
           const seen = new Set<string>();
@@ -100,46 +106,57 @@ export const useFriendStore = create<FriendStore>()(
             }
           }
 
-          // ── Friend Requests ──
+          // ── Friend Requests: same two-step approach ──
           const [incomingRes, outgoingRes] = await Promise.all([
-            supabase
-              .from("friend_requests")
-              .select("id, sender_id, receiver_id, status, created_at, sender:profiles!friend_requests_sender_id_fkey(name, username, avatar_url)")
-              .eq("receiver_id", user.id)
-              .eq("status", "pending"),
-            supabase
-              .from("friend_requests")
-              .select("id, sender_id, receiver_id, status, created_at, receiver:profiles!friend_requests_receiver_id_fkey(name, username, avatar_url)")
-              .eq("sender_id", user.id)
-              .eq("status", "pending"),
+            supabase.from("friend_requests").select("id, sender_id, receiver_id, status, created_at")
+              .eq("receiver_id", user.id).eq("status", "pending"),
+            supabase.from("friend_requests").select("id, sender_id, receiver_id, status, created_at")
+              .eq("sender_id", user.id).eq("status", "pending"),
           ]);
+
+          // Collect user IDs from requests
+          const requestUserIds = new Set<string>();
+          for (const r of (incomingRes.data || [])) requestUserIds.add(r.sender_id as string);
+          for (const r of (outgoingRes.data || [])) requestUserIds.add(r.receiver_id as string);
+
+          // Fetch profiles for request users
+          const requestProfiles: Record<string, { name?: string; username?: string; avatar_url?: string }> = {};
+          if (requestUserIds.size > 0) {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, name, username, avatar_url")
+              .in("id", [...requestUserIds]);
+            for (const p of (profiles || [])) {
+              requestProfiles[p.id as string] = p as { name?: string; username?: string; avatar_url?: string };
+            }
+          }
 
           set({
             friends: dedupedFriends,
-            incomingRequests: (incomingRes.data || []).map((r: Record<string, unknown>) => {
-              const s = (r.sender as Record<string, unknown>) || {};
+            incomingRequests: (incomingRes.data || []).map((r) => {
+              const s = requestProfiles[r.sender_id as string] || {};
               return {
                 id: r.id as string,
                 senderId: r.sender_id as string,
                 receiverId: r.receiver_id as string,
                 status: r.status as "pending",
                 createdAt: r.created_at as string,
-                name: s.name as string,
-                username: s.username as string,
-                avatar: s.avatar_url as string,
+                name: s.name || "Пользователь",
+                username: s.username || "user",
+                avatar: s.avatar_url,
               };
             }),
-            outgoingRequests: (outgoingRes.data || []).map((r: Record<string, unknown>) => {
-              const rec = (r.receiver as Record<string, unknown>) || {};
+            outgoingRequests: (outgoingRes.data || []).map((r) => {
+              const rec = requestProfiles[r.receiver_id as string] || {};
               return {
                 id: r.id as string,
                 senderId: r.sender_id as string,
                 receiverId: r.receiver_id as string,
                 status: r.status as "pending",
                 createdAt: r.created_at as string,
-                name: rec.name as string,
-                username: rec.username as string,
-                avatar: rec.avatar_url as string,
+                name: rec.name || "Пользователь",
+                username: rec.username || "user",
+                avatar: rec.avatar_url,
               };
             }),
             syncStatus: "synced",
@@ -207,11 +224,16 @@ export const useFriendStore = create<FriendStore>()(
           await supabase.from("friend_requests").insert({
             id, sender_id: user.id, receiver_id: receiverId,
           });
-        } catch (e) {
+        } catch (e: unknown) {
           // Remove optimistic request on failure
           set((s) => ({
             outgoingRequests: s.outgoingRequests.filter((r) => r.id !== id),
           }));
+          // Postgres unique violation code 23505 = duplicate key
+          const pgCode = (e as { code?: string })?.code;
+          if (pgCode === "23505") {
+            return { error: "Заявка уже была отправлена ранее" };
+          }
           return { error: "Не удалось отправить заявку. Попробуйте позже." };
         }
 

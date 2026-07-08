@@ -229,11 +229,19 @@ export default function AddFriendPage() {
                 </div>
                 <h2 className="text-lg font-semibold mb-1">Вы уже друзья</h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Этот пользователь уже в вашем списке друзей
+                  Откройте полный профиль с историей и статистикой
                 </p>
-                <Button variant="outline" onClick={goBack}>
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Назад
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => navigate(`/friends/${targetUserId}`)}
+                    className="gap-1.5"
+                  >
+                    Открыть профиль
+                  </Button>
+                  <Button variant="outline" onClick={goBack}>
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Назад
+                  </Button>
+                </div>
               </div>
             )}
 
