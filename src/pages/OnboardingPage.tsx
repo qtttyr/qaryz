@@ -511,7 +511,7 @@ function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const currentUsername = user?.email?.split("@")[0] || "";
 
-  // Debounced username uniqueness check
+  // Debounced username uniqueness check — always validates against DB
   useEffect(() => {
     if (!username.trim() || !usernameTouched) {
       setUsernameError("");
@@ -528,23 +528,22 @@ function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
       return;
     }
 
-    // Skip DB check if not authenticated (onboarding before auth)
-    if (!user?.id) {
-      setUsernameError("");
-      setChecking(false);
-      return;
-    }
-
     clearTimeout(debounceRef.current);
+    const latest = username.trim();
     debounceRef.current = setTimeout(async () => {
       setChecking(true);
       try {
-        const { data } = await supabase
+        // If user is authenticated, exclude self; otherwise just check existence
+        const query = supabase
           .from("profiles")
           .select("id")
-          .eq("username", username.trim())
-          .neq("id", user.id)
-          .maybeSingle();
+          .eq("username", latest);
+        
+        if (user?.id) {
+          query.neq("id", user.id);
+        }
+        
+        const { data } = await query.maybeSingle();
 
         if (data) {
           setUsernameError("Этот username уже занят");
@@ -570,10 +569,14 @@ function ProfileSetupScreen({ onDone }: { onDone: () => void }) {
   const handleFinish = async () => {
     // Save username and phone to profile
     if (user && isUsernameValid) {
-      await updateProfile(user.id, {
+      const { error } = await updateProfile(user.id, {
         username: username.trim(),
         phone: phone.trim() || undefined,
       });
+      if (error) {
+        setUsernameError(error);
+        return;
+      }
     }
     onDone();
   };
@@ -846,15 +849,7 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* Skip button */}
-      {screen < SCREENS.length - 1 && (
-        <button
-          onClick={finish}
-          className="fixed top-6 right-6 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-        >
-          Пропустить
-        </button>
-      )}
+      {/* Skip button removed — onboarding is mandatory */}
     </div>
   );
 }

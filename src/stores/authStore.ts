@@ -18,7 +18,7 @@ interface AuthStore {
   signOut: () => Promise<void>;
   setSession: (session: Session | null) => void;
   syncProfile: () => Promise<void>;
-  updateProfile: (userId: string, data: { name?: string; username?: string; phone?: string; avatar_url?: string | null }) => Promise<void>;
+  updateProfile: (userId: string, data: { name?: string; username?: string; phone?: string; avatar_url?: string | null }) => Promise<{ error?: string }>;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -102,7 +102,24 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   /** Update profile fields in Supabase + local store */
-  updateProfile: async (userId, data) => {
+  updateProfile: async (userId, data): Promise<{ error?: string }> => {
+    // If changing username, check for duplicates first
+    if (data.username !== undefined && data.username.trim()) {
+      try {
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", data.username.trim())
+          .neq("id", userId)
+          .maybeSingle();
+        if (existing) {
+          return { error: "Этот username уже занят" };
+        }
+      } catch {
+        return { error: "Не удалось проверить username" };
+      }
+    }
+
     // Update local store optimistically
     const upd: Partial<UserProfile> = {};
     if (data.name !== undefined) upd.name = data.name;
@@ -127,7 +144,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
       );
     } catch (e) {
       console.error("Failed to update profile in Supabase:", e);
+      return { error: "Не удалось сохранить в базу данных" };
     }
+
+    return {};
   },
 
   signUp: async (email, password, name) => {
