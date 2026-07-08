@@ -72,6 +72,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem("qaryz-debts");
+    localStorage.removeItem("qaryz-user");
     set({ user: null, session: null, state: "unauthenticated" });
   },
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AiMailIcon, AiLockIcon, AiUserIcon, AiViewIcon } from "@hugeicons/core-free-icons";
@@ -9,6 +9,11 @@ import { motion, AnimatePresence } from "framer-motion";
 type AuthMode = "login" | "register";
 
 export default function AuthPage() {
+  // Force light theme on auth page
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, []);
+
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

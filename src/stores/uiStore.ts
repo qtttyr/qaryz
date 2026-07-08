@@ -21,7 +21,7 @@ interface UIStore {
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
-      theme: "dark",
+      theme: "light",
       sidebarOpen: false,
       activeModal: "none",
       activeModalData: undefined,
@@ -65,6 +65,8 @@ export const useUIStore = create<UIStore>()(
       onRehydrateStorage: () => (state) => {
         if (state?.theme === "dark") {
           document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
         }
       },
     }

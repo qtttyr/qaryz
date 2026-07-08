@@ -495,6 +495,11 @@ export default function OnboardingPage() {
   const [screen, setScreen] = useState(0);
   const navigate = useNavigate();
 
+  // Force light theme on onboarding
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, []);
+
   const next = useCallback(() => {
     if (screen < SCREENS.length - 1) {
       setScreen((s) => s + 1);

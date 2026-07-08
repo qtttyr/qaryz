@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { useUIStore } from "./stores/uiStore";
@@ -10,18 +10,31 @@ function App() {
   const initialize = useAuthStore((s) => s.initialize);
   const authState = useAuthStore((s) => s.state);
   const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
+  const setData = useDebtStore((s) => s.setData);
+  const prevAuthState = useRef(authState);
 
   // Initialize auth on mount
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  // Sync data from Supabase when user authenticates
+  // Handle auth state changes: sync on login, clear on logout
   useEffect(() => {
-    if (authState === "authenticated") {
+    const prev = prevAuthState.current;
+    prevAuthState.current = authState;
+
+    // Just logged in
+    if (authState === "authenticated" && prev === "unauthenticated") {
       syncFromSupabase();
     }
-  }, [authState, syncFromSupabase]);
+
+    // Just logged out — clear local data immediately
+    if (authState === "unauthenticated" && prev === "authenticated") {
+      localStorage.removeItem("qaryz-debts");
+      localStorage.removeItem("qaryz-user");
+      setData({ debts: [], payments: [], people: [] });
+    }
+  }, [authState, syncFromSupabase, setData]);
 
   // Apply theme
   useEffect(() => {
