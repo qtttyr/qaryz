@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import OnboardingGate from "@/components/layout/OnboardingGate";
 import AppLayout from "@/components/layout/AppLayout";
+import LandingPage from "@/pages/LandingPage";
 import AuthPage from "@/pages/AuthPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import OwedToMePage from "@/pages/OwedToMePage";
@@ -17,6 +18,10 @@ import FriendsPage from "@/pages/FriendsPage";
 import FriendProfilePage from "@/pages/FriendProfilePage";
 
 export const router = createBrowserRouter([
+  {
+    path: "/welcome",
+    element: <LandingPage />,
+  },
   {
     path: "/auth",
     element: (

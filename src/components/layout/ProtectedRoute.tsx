@@ -35,12 +35,19 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     // If Supabase is not configured, allow access without auth
     if (!supabaseConfigured) return;
 
-    // If not on auth page and not authenticated, redirect
-    if (state === "unauthenticated" && location.pathname !== "/auth") {
-      navigate("/auth", { replace: true });
+    // If not on allowed public paths and not authenticated, redirect to /welcome
+    if (
+      state === "unauthenticated" &&
+      location.pathname !== "/auth" &&
+      location.pathname !== "/welcome" &&
+      location.pathname !== "/onboarding" &&
+      location.pathname !== "/join" &&
+      !location.pathname.startsWith("/add-friend")
+    ) {
+      navigate("/welcome", { replace: true });
     }
 
-    // If on auth page and already authenticated, redirect to home
+    // If on auth page and already authenticated, redirect to app home (/)
     if (state === "authenticated" && location.pathname === "/auth") {
       navigate("/", { replace: true });
     }
