@@ -2,10 +2,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDebtStore } from "@/stores/debtStore";
 import { useUserStore } from "@/stores/userStore";
 import { useUIStore } from "@/stores/uiStore";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
-  Delete02Icon,
   Add01Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,10 @@ export default function PersonDetailPage() {
   const navigate = useNavigate();
   const getPerson = useDebtStore((s) => s.getPerson);
   const getPersonBalance = useDebtStore((s) => s.getPersonBalance);
-  const removePerson = useDebtStore((s) => s.removePerson);
   const openModal = useUIStore((s) => s.openModal);
   const currency = useUserStore((s) => s.profile.currency);
+  const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
+  const syncStatus = useDebtStore((s) => s.syncStatus);
 
   const person = id ? getPerson(id) : null;
   const balance = id ? getPersonBalance(id) : 0;
@@ -29,65 +30,51 @@ export default function PersonDetailPage() {
 
   if (!person) {
     return (
+      <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <p className="text-muted-foreground font-medium">Человек не найден</p>
         <Button variant="link" onClick={() => navigate("/")}>
           Вернуться назад
         </Button>
       </div>
+      </PullToRefresh>
     );
   }
 
-  const handleDelete = () => {
-    if (confirm(`Удалить ${person.name} и все связанные долги?`)) {
-      removePerson(person.id);
-      navigate("/");
-    }
-  };
-
   return (
+    <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
     <div className="flex flex-col min-h-full">
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 -mx-4 px-4 py-3 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => navigate(-1)}
-              className="rounded-full"
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} size={20} />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-[10px] text-white font-bold bg-linear-to-br",
-                  getAvatarColor(person.id)
-                )}
-              >
-                {person.avatar ? (
-                  <img src={person.avatar} className="w-full h-full rounded-full object-cover" alt="" />
-                ) : (
-                  getInitials(person.name)
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="font-semibold text-foreground leading-none">{person.name}</span>
-                {person.phone && (
-                  <span className="text-[10px] text-muted-foreground mt-0.5">{person.phone}</span>
-                )}
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={handleDelete}
-            className="rounded-full text-destructive hover:bg-destructive/10"
+            onClick={() => navigate(-1)}
+            className="rounded-full"
           >
-            <HugeiconsIcon icon={Delete02Icon} size={18} />
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={20} />
           </Button>
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-[10px] text-white font-bold bg-linear-to-br",
+                getAvatarColor(person.id)
+              )}
+            >
+              {person.avatar ? (
+                <img src={person.avatar} className="w-full h-full rounded-full object-cover" alt="" />
+              ) : (
+                getInitials(person.name)
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-foreground leading-none">{person.name}</span>
+              {person.phone && (
+                <span className="text-[10px] text-muted-foreground mt-0.5">{person.phone}</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -131,5 +118,6 @@ export default function PersonDetailPage() {
         <TransactionList personId={person.id} />
       </div>
     </div>
+    </PullToRefresh>
   );
 }

@@ -1,20 +1,25 @@
 import { usePeople } from "@/hooks/usePeople";
 import PersonCard from "@/components/debts/PersonCard";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Search01Icon, MoneySend01Icon } from "@hugeicons/core-free-icons";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDebtStore } from "@/stores/debtStore";
 
 export default function IOwePage() {
   const { iOwe } = usePeople();
   const [search, setSearch] = useState("");
+  const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
+  const syncStatus = useDebtStore((s) => s.syncStatus);
 
   const filtered = iOwe.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Я должен</h1>
@@ -63,5 +68,6 @@ export default function IOwePage() {
         </AnimatePresence>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

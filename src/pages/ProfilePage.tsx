@@ -27,6 +27,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Separator } from "@/components/ui/separator";
 import AvatarUpload from "@/components/shared/AvatarUpload";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Share2 } from "lucide-react";
@@ -120,7 +121,11 @@ export default function ProfilePage() {
     }
   };
 
+  const syncStatus = useDebtStore((s) => s.syncStatus);
+  const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
+
   return (
+    <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
     <div className="space-y-8 pb-10">
       {/* Profile Header — Instagram style */}
       <div className="flex flex-col items-center pt-4 pb-6">
@@ -377,6 +382,7 @@ export default function ProfilePage() {
         </p>
       </section>
     </div>
+    </PullToRefresh>
   );
 }
 

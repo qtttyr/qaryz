@@ -2,6 +2,7 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 import OverviewCard from "@/components/analytics/OverviewCard";
 import StatCard from "@/components/analytics/StatCard";
 import ChartSection from "@/components/analytics/ChartSection";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tick01Icon,
@@ -12,12 +13,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import { formatCurrency } from "@/lib/formatters";
 import { useUserStore } from "@/stores/userStore";
+import { useDebtStore } from "@/stores/debtStore";
 
 export default function AnalyticsPage() {
   const analytics = useAnalytics();
   const currency = useUserStore((s) => s.profile.currency);
+  const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
+  const syncStatus = useDebtStore((s) => s.syncStatus);
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Аналитика</h1>
@@ -75,5 +80,6 @@ export default function AnalyticsPage() {
       
       <div className="pb-4" />
     </div>
+    </PullToRefresh>
   );
 }
