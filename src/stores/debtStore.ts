@@ -130,13 +130,24 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
   },
 
   settleDebt: async (debtId) => {
+    const debt = get().debts.find((d) => d.id === debtId);
     const settledAt = new Date().toISOString();
     set((state) => ({
       debts: state.debts.map((d) => (d.id === debtId ? { ...d, settledAt } : d)),
     }));
 
     const user = useAuthStore.getState().user;
-    if (user) {
+    if (!user) return;
+
+    if (debt?.sharedDebtRefId) {
+      // Shared debt — update shared_debts table
+      const { error } = await supabase
+        .from("shared_debts")
+        .update({ settled_at: settledAt })
+        .eq("id", debt.sharedDebtRefId);
+      if (error) console.error("settleSharedDebt error:", error);
+    } else {
+      // Regular debt — update debts table
       const { error } = await supabase.from("debts").update({ settled_at: settledAt } as never).eq("id", debtId).eq("user_id", user.id);
       if (error) console.error("settleDebt error:", error);
     }
@@ -194,17 +205,28 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
     });
 
     const user = useAuthStore.getState().user;
-    if (user) {
-      await supabase.from("payments").insert({
-        id: newPayment.id,
-        user_id: user.id,
-        debt_id: debtId,
-        amount: newPayment.amount,
-        note: note || null,
-        type: newPayment.type,
-      } as never);
+    if (!user) return;
 
-      if (isFullPayment) {
+    await supabase.from("payments").insert({
+      id: newPayment.id,
+      user_id: user.id,
+      debt_id: debtId,
+      amount: newPayment.amount,
+      note: note || null,
+      type: newPayment.type,
+    } as never);
+
+    if (isFullPayment) {
+      // Check if this is a shared debt — update the RIGHT table
+      const debt = get().debts.find((d) => d.id === debtId);
+      if (debt?.sharedDebtRefId) {
+        // Shared debt: update shared_debts.settled_at so BOTH users see it as closed
+        await supabase
+          .from("shared_debts")
+          .update({ settled_at: new Date().toISOString() })
+          .eq("id", debt.sharedDebtRefId);
+      } else {
+        // Regular debt: update the debts table
         await supabase
           .from("debts")
           .update({ settled_at: new Date().toISOString() } as never)
