@@ -23,7 +23,7 @@ export type PushPermissionState =
 interface UsePushNotificationsReturn {
   permission: PushPermissionState;
   subscribed: boolean;
-  subscribe: () => Promise<void>;
+  subscribe: () => Promise<boolean>;
   unsubscribe: () => Promise<void>;
   loading: boolean;
   supported: boolean;
