@@ -4,7 +4,6 @@ import { useFriendStore } from "@/stores/friendStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUserStore } from "@/stores/userStore";
 import { useFriendAnalytics } from "@/hooks/useFriendAnalytics";
-import FriendAchievements from "@/components/friends/FriendAchievements";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
@@ -315,6 +314,54 @@ export default function FriendProfilePage() {
           )}
         </div>
 
+        {/* ── Compact Achievement Badge ── */}
+        {analytics.topAchievement && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 mb-4"
+          >
+            <div className={cn(
+              "relative overflow-hidden rounded-2xl border px-4 py-3 flex items-center gap-3",
+              "bg-gradient-to-r",
+              analytics.topAchievement.rarity === "legendary" ? "from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200/50 dark:border-amber-800/30" :
+              analytics.topAchievement.rarity === "epic" ? "from-violet-50 to-fuchsia-50 dark:from-violet-950/20 dark:to-fuchsia-950/20 border-violet-200/50 dark:border-violet-800/30" :
+              analytics.topAchievement.rarity === "rare" ? "from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200/50 dark:border-blue-800/30" :
+              "from-zinc-50 to-zinc-100 dark:from-zinc-900/20 dark:to-zinc-800/20 border-zinc-200/50 dark:border-zinc-800/30"
+            )}>
+              {/* Glow dot */}
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 bg-gradient-to-br",
+                analytics.topAchievement.rarity === "legendary" ? "from-amber-400 to-orange-400" :
+                analytics.topAchievement.rarity === "epic" ? "from-violet-400 to-fuchsia-400" :
+                analytics.topAchievement.rarity === "rare" ? "from-blue-400 to-cyan-400" :
+                "from-zinc-300 to-zinc-400"
+              )}>
+                {analytics.topAchievement.icon}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5">
+                  {analytics.topAchievement.title}
+                  <span className={cn(
+                    "text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider",
+                    analytics.topAchievement.rarity === "legendary" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" :
+                    analytics.topAchievement.rarity === "epic" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" :
+                    analytics.topAchievement.rarity === "rare" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {analytics.topAchievement.rarity === "legendary" ? "LEG" :
+                     analytics.topAchievement.rarity === "epic" ? "EPIC" :
+                     analytics.topAchievement.rarity === "rare" ? "RARE" : ""}
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                  {analytics.topAchievement.description}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {!hasData ? (
           /* ── Empty State ── */
           <div className="px-4">
@@ -331,24 +378,10 @@ export default function FriendProfilePage() {
               </Button>
             </div>
 
-            {/* Achievements even with no data */}
-            {analytics.achievements.some((a) => a.unlocked) && (
-              <div className="mt-4 px-0">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-0">
-                  Достижения
-                </h3>
-                <FriendAchievements achievements={analytics.achievements} />
-              </div>
-            )}
           </div>
         ) : (
           /* ═══ Full Analytics ═══ */
           <div className="px-4 space-y-5 pb-6">
-
-            {/* ── Top Achievement Hero ── */}
-            {analytics.topAchievement && (
-              <FriendAchievements achievements={analytics.achievements} />
-            )}
 
             {/* ── Overview Card ── */}
             <motion.div
@@ -494,16 +527,6 @@ export default function FriendProfilePage() {
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-            )}
-
-            {/* ── Achievements Grid ── */}
-            {analytics.achievements.length > 0 && !analytics.topAchievement && (
-              <div>
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Достижения
-                </h3>
-                <FriendAchievements achievements={analytics.achievements} />
-              </div>
             )}
 
             <Separator />
