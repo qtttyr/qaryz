@@ -52,31 +52,82 @@ alter table public.push_subscriptions enable row level security;
 alter table public.notifications enable row level security;
 
 -- Push Subscriptions: user manages own subscriptions
+drop policy if exists "Users can view own subscriptions" on public.push_subscriptions;
 create policy "Users can view own subscriptions"
   on public.push_subscriptions for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can create own subscriptions" on public.push_subscriptions;
 create policy "Users can create own subscriptions"
   on public.push_subscriptions for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own subscriptions" on public.push_subscriptions;
 create policy "Users can delete own subscriptions"
   on public.push_subscriptions for delete
   using (auth.uid() = user_id);
 
 -- Notifications: user can view, system can insert
+drop policy if exists "Users can view own notifications" on public.notifications;
 create policy "Users can view own notifications"
   on public.notifications for select
   using (auth.uid() = user_id);
 
+drop policy if exists "System can insert notifications" on public.notifications;
 create policy "System can insert notifications"
   on public.notifications for insert
   with check (true);  -- service_role can insert via edge function
 
+drop policy if exists "Users can mark notifications as read" on public.notifications;
 create policy "Users can mark notifications as read"
   on public.notifications for update
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own notifications" on public.notifications;
 create policy "Users can delete own notifications"
   on public.notifications for delete
   using (auth.uid() = user_id);
+
+-- ============================================================
+-- RPC FUNCTIONS (SECURITY DEFINER — bypass RLS for reliability)
+-- ============================================================
+
+-- Upsert a push subscription for the current user
+create or replace function public.upsert_push_subscription(
+  p_endpoint text,
+  p_p256dh_key text,
+  p_auth_key text
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.push_subscriptions (user_id, endpoint, p256dh_key, auth_key)
+  values (auth.uid(), p_endpoint, p_p256dh_key, p_auth_key)
+  on conflict (user_id, endpoint)
+  do update set
+    p256dh_key = excluded.p256dh_key,
+    auth_key = excluded.auth_key,
+    user_agent = current_setting('request.headers')::json->>'user-agent';
+end;
+$$;
+
+-- Remove push subscription for the current user
+create or replace function public.remove_push_subscription(
+  p_endpoint text default null
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_endpoint is not null then
+    delete from public.push_subscriptions
+    where user_id = auth.uid() and endpoint = p_endpoint;
+  else
+    delete from public.push_subscriptions
+    where user_id = auth.uid();
+  end if;
+end;
+$$;

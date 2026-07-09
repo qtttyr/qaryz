@@ -34,6 +34,7 @@ import { Share2 } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import PushSetupBanner from "@/components/notifications/PushSetupBanner";
 import { Notification02Icon } from "@hugeicons/core-free-icons";
+import { showToast } from "@/components/shared/Toast";
 
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
@@ -143,6 +144,20 @@ export default function ProfilePage() {
 
   const showPushBanner = pushSupported && !pushSubscribed && !pushBannerDismissed && pushPermission !== "denied";
 
+  const handlePushSubscribe = async () => {
+    const ok = await pushSubscribe();
+    if (ok) {
+      showToast("🔔 Уведомления включены", "success");
+    } else {
+      showToast("Не удалось включить уведомления", "error");
+    }
+  };
+
+  const handlePushUnsubscribe = async () => {
+    await pushUnsubscribe();
+    showToast("Уведомления отключены", "info");
+  };
+
   const handleDismissBanner = () => {
     setPushBannerDismissed(true);
     localStorage.setItem("qaryz-push-banner-dismissed", "true");
@@ -159,8 +174,8 @@ export default function ProfilePage() {
           permission={pushPermission}
           loading={pushLoading}
           supported={pushSupported}
-          onEnable={pushSubscribe}
-          onDisable={pushUnsubscribe}
+          onEnable={handlePushSubscribe}
+          onDisable={handlePushUnsubscribe}
           onDismiss={handleDismissBanner}
         />
       </div>
@@ -399,7 +414,7 @@ export default function ProfilePage() {
                 size="sm"
                 variant={pushSubscribed ? "outline" : "default"}
                 className="h-9 rounded-lg text-xs gap-1.5"
-                onClick={pushSubscribed ? pushUnsubscribe : pushSubscribe}
+                onClick={pushSubscribed ? handlePushUnsubscribe : handlePushSubscribe}
                 disabled={pushLoading}
               >
                 {pushLoading ? (

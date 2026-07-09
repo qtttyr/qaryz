@@ -59,8 +59,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     checkSubscription();
   }, [supported, user]);
 
-  const subscribe = useCallback(async () => {
-    if (!supported || !user) return;
+  const subscribe = useCallback(async (): Promise<boolean> => {
+    if (!supported || !user) return false;
     setLoading(true);
 
     try {
@@ -73,7 +73,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       if (perm !== "granted") {
         setLoading(false);
-        return;
+        return false;
       }
 
       // 2. Get service worker registration
@@ -85,31 +85,48 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
       });
 
-      // 4. Store subscription in Supabase
+      // 4. Store subscription in Supabase via RPC (bypasses RLS)
       const subJSON = sub.toJSON();
-      const { error } = await supabase.from("push_subscriptions").upsert(
+      const { error: rpcError } = await supabase.rpc(
+        "upsert_push_subscription",
         {
-          user_id: user.id,
-          endpoint: subJSON.endpoint!,
-          p256dh_key: subJSON.keys!.p256dh,
-          auth_key: subJSON.keys!.auth,
+          p_endpoint: subJSON.endpoint!,
+          p_p256dh_key: subJSON.keys!.p256dh,
+          p_auth_key: subJSON.keys!.auth,
         },
-        { onConflict: "user_id, endpoint" },
       );
 
-      if (error) {
-        console.error("Failed to save push subscription:", error);
-        await sub.unsubscribe();
-        setLoading(false);
-        return;
+      if (rpcError) {
+        // Fallback: try direct upsert in case RPC doesn't exist (old migration)
+        console.warn("RPC upsert failed, trying direct insert:", rpcError);
+        const { error: directError } = await supabase
+          .from("push_subscriptions")
+          .upsert(
+            {
+              user_id: user.id,
+              endpoint: subJSON.endpoint!,
+              p256dh_key: subJSON.keys!.p256dh,
+              auth_key: subJSON.keys!.auth,
+            },
+            { onConflict: "user_id, endpoint" },
+          );
+
+        if (directError) {
+          console.error("Direct upsert also failed:", directError);
+          await sub.unsubscribe();
+          setLoading(false);
+          return false;
+        }
       }
 
       setSubscribed(true);
+      setLoading(false);
+      return true;
     } catch (err) {
       console.error("Push subscribe error:", err);
+      setLoading(false);
+      return false;
     }
-
-    setLoading(false);
   }, [supported, user]);
 
   const unsubscribe = useCallback(async () => {
@@ -123,14 +140,23 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         await sub.unsubscribe();
       }
 
-      // Remove from DB
-      const { error } = await supabase
-        .from("push_subscriptions")
-        .delete()
-        .eq("user_id", user.id);
+      // Remove from DB via RPC
+      const { error: rpcError } = await supabase.rpc(
+        "remove_push_subscription",
+        { p_endpoint: null },
+      );
 
-      if (error) {
-        console.error("Failed to remove push subscription:", error);
+      if (rpcError) {
+        // Fallback: direct delete
+        console.warn("RPC remove failed, trying direct delete:", rpcError);
+        const { error: directError } = await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (directError) {
+          console.error("Direct delete also failed:", directError);
+        }
       }
 
       setSubscribed(false);
