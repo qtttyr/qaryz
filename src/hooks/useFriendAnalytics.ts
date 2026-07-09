@@ -69,11 +69,7 @@ function calcAchievements(stats: {
   totalDebts: number;
   totalAllTime: number;
   balance: number;
-  iOwCount: number;
-  owedToMeCount: number;
   debts: Debt[];
-  payments: Payment[];
-  totalPaid: number;
   firstDebtDate: string | null;
   averageDebt: number;
   oldestActiveMonths: number;
@@ -336,10 +332,10 @@ export function useFriendAnalytics(friendUserId: string | undefined): FriendAnal
       const achievements = calcAchievements({
         activeDebts: 0, closedDebts: 0, totalDebts: 0,
         totalAllTime: 0, balance: 0,
-        iOwCount: 0, owedToMeCount: 0, debts: [], payments: [],
-        totalPaid: 0, firstDebtDate: null, averageDebt: 0,
-        oldestActiveMonths: 0, totalClosedAmount: 0,
-        hasBothDirections: false, biggestDebt: null,
+        debts: [],
+        firstDebtDate: null, averageDebt: 0,
+        oldestActiveMonths: 0,
+        hasBothDirections: false,
       });
 
       return {
