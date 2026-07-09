@@ -3,15 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Notification02Icon } from "@hugeicons/core-free-icons";
-import { ArrowRight, Check, Smartphone, Share2, Plus, ExternalLink, ChevronRight } from "lucide-react";
+import {
+  ArrowRight,
+  Smartphone,
+  Share2,
+  Plus,
+  ExternalLink,
+  ChevronRight,
+} from "lucide-react";
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const authState = useAuthStore((s) => s.state);
   const [step, setStep] = useState<"hero" | "tutorial">("hero");
-  const [installPlatform, setInstallPlatform] = useState<"ios" | "android">("ios");
+  const [installPlatform, setInstallPlatform] = useState<"ios" | "android">(
+    "ios",
+  );
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -36,17 +43,42 @@ export default function LandingPage() {
   const goNext = () => setStep("tutorial");
   const goAuth = () => navigate("/auth");
 
-  const tutorialSteps = installPlatform === "ios"
-    ? [
-        { icon: Share2, title: "Нажмите Share", desc: "В Safari нажмите «Поделиться» внизу экрана" },
-        { icon: Plus, title: "На главный экран", desc: "Пролистайте вниз и выберите «На экран «Домой»" },
-        { icon: ExternalLink, title: "Готово!", desc: "Иконка Qaryz появится как обычное приложение" },
-      ]
-    : [
-        { icon: Share2, title: "Откройте меню", desc: "В Chrome нажмите три точки в правом верхнем углу" },
-        { icon: Plus, title: "Добавить на экран", desc: "Выберите «Добавить на главный экран»" },
-        { icon: ExternalLink, title: "Готово!", desc: "Иконка Qaryz появится на рабочем столе" },
-      ];
+  const tutorialSteps =
+    installPlatform === "ios"
+      ? [
+          {
+            icon: Share2,
+            title: "Нажмите Share",
+            desc: "В Safari нажмите «Поделиться» внизу экрана",
+          },
+          {
+            icon: Plus,
+            title: "На главный экран",
+            desc: "Пролистайте вниз и выберите «На экран «Домой»",
+          },
+          {
+            icon: ExternalLink,
+            title: "Готово!",
+            desc: "Иконка Qaryz появится как обычное приложение",
+          },
+        ]
+      : [
+          {
+            icon: Share2,
+            title: "Откройте меню",
+            desc: "В Chrome нажмите три точки в правом верхнем углу",
+          },
+          {
+            icon: Plus,
+            title: "Добавить на экран",
+            desc: "Выберите «Добавить на главный экран»",
+          },
+          {
+            icon: ExternalLink,
+            title: "Готово!",
+            desc: "Иконка Qaryz появится на рабочем столе",
+          },
+        ];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -80,7 +112,11 @@ export default function LandingPage() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                transition={{
+                  delay: 0.2,
+                  duration: 0.6,
+                  ease: [0.25, 0.1, 0.25, 1],
+                }}
                 className="mb-6"
               >
                 <div className="w-24 h-24 mx-auto mb-6 rounded-[26px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center shadow-xl shadow-primary/5">
@@ -92,7 +128,11 @@ export default function LandingPage() {
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                transition={{
+                  delay: 0.35,
+                  duration: 0.5,
+                  ease: [0.25, 0.1, 0.25, 1],
+                }}
                 className="text-4xl sm:text-5xl font-black tracking-tight leading-[1.1] text-center mb-4"
               >
                 Учёт долгов
@@ -107,8 +147,10 @@ export default function LandingPage() {
                 transition={{ delay: 0.5, duration: 0.5 }}
                 className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md text-center mt-3"
               >
-                Лёгкое PWA-приложение для учёта долгов, совместных расходов и взаиморасчётов.
-                Занимает <strong className="text-foreground">меньше 1 МБ</strong> и работает офлайн.
+                Лёгкое PWA-приложение для учёта долгов, совместных расходов и
+                взаиморасчётов. Занимает{" "}
+                <strong className="text-foreground">меньше 1 МБ</strong> и
+                работает офлайн.
               </motion.p>
 
               {/* CTA */}
@@ -135,7 +177,8 @@ export default function LandingPage() {
                 transition={{ delay: 0.9, duration: 0.5 }}
                 className="mt-6 text-xs text-muted-foreground/50 text-center"
               >
-                Бесплатно • Без рекламы • <span className="text-primary/70">Меньше 1 МБ</span>
+                Бесплатно • Без рекламы •{" "}
+                <span className="text-primary/70">Меньше 1 МБ</span>
               </motion.p>
             </motion.div>
           )}
@@ -156,7 +199,9 @@ export default function LandingPage() {
                 transition={{ duration: 0.4 }}
                 className="flex items-center justify-center gap-2 mb-1"
               >
-                <span className="text-[10px] uppercase tracking-widest font-medium text-primary">3 шага</span>
+                <span className="text-[10px] uppercase tracking-widest font-medium text-primary">
+                  3 шага
+                </span>
               </motion.div>
               <motion.h2
                 initial={{ opacity: 0, y: 20 }}
@@ -226,7 +271,12 @@ export default function LandingPage() {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.5 + i * 0.15, duration: 0.3, type: "spring", stiffness: 200 }}
+                        transition={{
+                          delay: 0.5 + i * 0.15,
+                          duration: 0.3,
+                          type: "spring",
+                          stiffness: 200,
+                        }}
                         className="w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center mx-auto mb-4"
                       >
                         {i + 1}
@@ -236,7 +286,12 @@ export default function LandingPage() {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.6 + i * 0.15, duration: 0.3, type: "spring", stiffness: 200 }}
+                        transition={{
+                          delay: 0.6 + i * 0.15,
+                          duration: 0.3,
+                          type: "spring",
+                          stiffness: 200,
+                        }}
                         className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center"
                       >
                         <step.icon className="w-7 h-7 text-muted-foreground/70" />
@@ -278,7 +333,8 @@ export default function LandingPage() {
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                   <p className="mt-4 text-xs text-muted-foreground/50 text-center">
-                    Бесплатно • Без рекламы • <span className="text-primary/70">Меньше 1 МБ</span>
+                    Бесплатно • Без рекламы •{" "}
+                    <span className="text-primary/70">Меньше 1 МБ</span>
                   </p>
                 </motion.div>
 
