@@ -215,18 +215,17 @@ export const useDebtStore = create<DebtStore>()(
         const toUserId = direction === "owed_to_me" ? user.id : friendUserId;
 
         // Insert into Supabase shared_debts table
-        try {
-          await supabase.from("shared_debts").insert({
-            id,
-            from_user_id: fromUserId,
-            to_user_id: toUserId,
-            amount,
-            description: description || null,
-            created_by: user.id,
-          });
-        } catch (e) {
-          console.error("Failed to create shared debt:", e);
-          throw new Error("Не удалось создать долг");
+        const { error: insertErr } = await supabase.from("shared_debts").insert({
+          id,
+          from_user_id: fromUserId,
+          to_user_id: toUserId,
+          amount,
+          description: description || null,
+          created_by: user.id,
+        });
+        if (insertErr) {
+          console.error("Failed to create shared debt:", insertErr);
+          throw new Error(insertErr.message);
         }
 
         // Also create a local Person entry for this friend
@@ -303,11 +302,16 @@ export const useDebtStore = create<DebtStore>()(
 
         try {
           // Step 1: fetch raw shared_debts without FK joins
-          const { data: raw } = await supabase
+          const { data: raw, error: sdErr } = await supabase
             .from("shared_debts")
             .select("*")
             .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
             .order("created_at", { ascending: false });
+
+          if (sdErr) {
+            console.error("Failed to fetch shared debts:", sdErr);
+            return;
+          }
 
           const rows = (raw || []) as Record<string, unknown>[];
           if (rows.length === 0) return;
@@ -320,10 +324,15 @@ export const useDebtStore = create<DebtStore>()(
           }
 
           // Step 3: batch-fetch profiles
-          const { data: profilesRaw } = await supabase
+          const { data: profilesRaw, error: pfErr } = await supabase
             .from("profiles")
             .select("id, name, username, avatar_url, phone")
             .in("id", Array.from(userIds));
+
+          if (pfErr) {
+            console.error("Failed to fetch profiles for shared debts:", pfErr);
+            return;
+          }
 
           const profileMap: Record<string, Record<string, unknown>> = {};
           for (const p of (profilesRaw || []) as Record<string, unknown>[]) {
@@ -424,6 +433,11 @@ export const useDebtStore = create<DebtStore>()(
             supabase.from("payments").select("*").eq("user_id", user.id),
             get().syncSharedDebts(), // await shared debts too
           ]);
+
+          // Log Supabase errors but continue with empty data
+          if (personsRes.error) console.error("syncFromSupabase persons error:", personsRes.error);
+          if (debtsRes.error) console.error("syncFromSupabase debts error:", debtsRes.error);
+          if (paymentsRes.error) console.error("syncFromSupabase payments error:", paymentsRes.error);
 
           const localState = get();
 

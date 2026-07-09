@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "./userStore";
 import { useFriendStore } from "./friendStore";
+import { useDebtStore } from "./debtStore";
 import type { UserProfile } from "@/types/user";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -34,8 +35,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ user: session.user, session, state: "authenticated" });
         const store = useAuthStore.getState();
         await store.syncProfile();
-        // Sync friends after profile
+        // Sync friends + debts after profile
         useFriendStore.getState().syncFromSupabase();
+        useDebtStore.getState().syncFromSupabase();
       } else {
         set({ user: null, session: null, state: "unauthenticated" });
       }
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           const store = useAuthStore.getState();
           store.syncProfile();
           useFriendStore.getState().syncFromSupabase();
+          useDebtStore.getState().syncFromSupabase();
         } else {
           set({ user: null, session: null, state: "unauthenticated" });
         }
@@ -181,6 +184,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: data.user, session: data.session, state: "authenticated" });
     await useAuthStore.getState().syncProfile();
     useFriendStore.getState().syncFromSupabase();
+    useDebtStore.getState().syncFromSupabase();
     return {};
   },
 

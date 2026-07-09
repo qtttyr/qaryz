@@ -100,24 +100,30 @@ export default function DebtForm({
 
     let personId = selectedPersonId;
 
-    // If friend mode and a friend is selected → use shared debt
-    if (mode === "friend" && personId && isFriendPerson(personId)) {
-      await addSharedDebt(personId, numAmount, direction, description.trim() || undefined);
-    } else {
-      // Manual flow
-      if (!personId && personName.trim()) {
-        personId = await addPerson(personName.trim(), phone.trim() || undefined);
-      } else if (personId && phone.trim()) {
-        updatePerson(personId, { phone: phone.trim() });
-      }
-      if (!personId) return;
+    try {
+      // If friend mode and a friend is selected → use shared debt
+      if (mode === "friend" && personId && isFriendPerson(personId)) {
+        await addSharedDebt(personId, numAmount, direction, description.trim() || undefined);
+      } else {
+        // Manual flow
+        if (!personId && personName.trim()) {
+          personId = await addPerson(personName.trim(), phone.trim() || undefined);
+        } else if (personId && phone.trim()) {
+          updatePerson(personId, { phone: phone.trim() });
+        }
+        if (!personId) return;
 
-      await addDebt({
-        personId,
-        direction,
-        amount: numAmount,
-        description: description.trim() || undefined,
-      });
+        await addDebt({
+          personId,
+          direction,
+          amount: numAmount,
+          description: description.trim() || undefined,
+        });
+      }
+    } catch (e) {
+      // If shared debt fails (e.g. RLS, table missing), show error and keep form open
+      console.error("Failed to save debt:", e);
+      return;
     }
 
     // Reset

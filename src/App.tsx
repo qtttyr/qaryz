@@ -23,8 +23,8 @@ function App() {
     const prev = prevAuthState.current;
     prevAuthState.current = authState;
 
-    // Just logged in
-    if (authState === "authenticated" && prev === "unauthenticated") {
+    // On login OR cold-start with existing session
+    if (authState === "authenticated" && (prev === "unauthenticated" || prev === "loading")) {
       syncFromSupabase();
     }
 
