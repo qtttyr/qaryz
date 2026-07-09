@@ -32,6 +32,9 @@ export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps)
   const remaining = debtId ? getRemainingAmount(debtId) : 0;
   const person = debt ? people.find((p) => p.id === debt.personId) : null;
 
+  // Only the creditor can settle — blocked for i_owe (I'm the debtor)
+  const canSettle = debt?.direction === "owed_to_me";
+
   const currencySymbols: Record<string, string> = {
     KZT: "₸",
     RUB: "₽",
@@ -81,71 +84,87 @@ export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps)
           </SheetDescription>
         </SheetHeader>
 
-        {/* Remaining amount */}
-        {remaining > 0 && (
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 mb-5">
-            <span className="text-sm text-muted-foreground">Остаток</span>
-            <span className="text-lg font-bold text-foreground">
-              {formatCurrency(remaining, currency)}
-            </span>
+        {!canSettle ? (
+          /* ── Blocked: i_owe debts can't be settled by current user ── */
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
+              <span className="text-2xl">🔒</span>
+            </div>
+            <p className="text-base font-semibold mb-1">Вы не можете погасить этот долг</p>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Только тот, кто дал деньги, может подтвердить возврат.
+              Попросите {person?.name || "друга"} подтвердить получение.
+            </p>
           </div>
+        ) : (
+          <>
+            {/* Remaining amount */}
+            {remaining > 0 && (
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 mb-5">
+                <span className="text-sm text-muted-foreground">Остаток</span>
+                <span className="text-lg font-bold text-foreground">
+                  {formatCurrency(remaining, currency)}
+                </span>
+              </div>
+            )}
+
+            {/* Quick pay full button */}
+            {remaining > 0 && (
+              <Button
+                variant="outline"
+                onClick={handlePayFull}
+                className="w-full h-11 rounded-xl mb-4 border-positive/30 text-positive hover:bg-positive/10 font-medium"
+              >
+                Погасить полностью — {formatCurrency(remaining, currency)}
+              </Button>
+            )}
+
+            {/* Amount input */}
+            <div className="space-y-3 mb-4">
+              <label className="text-sm font-medium text-foreground">
+                Или введите сумму
+              </label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="h-14 rounded-xl bg-muted/50 border-border/50 text-2xl font-bold text-center pr-12"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-muted-foreground font-medium">
+                  {currencySymbols[currency] || currency}
+                </span>
+              </div>
+            </div>
+
+            {/* Note */}
+            <div className="space-y-3 mb-6">
+              <label className="text-sm font-medium text-foreground">
+                Заметка{" "}
+                <span className="text-muted-foreground font-normal">
+                  (необязательно)
+                </span>
+              </label>
+              <Input
+                placeholder="Каспи, наличные..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
+              />
+            </div>
+
+            {/* Submit */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!amount || parseFloat(amount) <= 0}
+              className="w-full h-12 rounded-xl text-base font-semibold bg-positive hover:bg-positive/90 text-white"
+            >
+              Внести оплату
+            </Button>
+          </>
         )}
-
-        {/* Quick pay full button */}
-        {remaining > 0 && (
-          <Button
-            variant="outline"
-            onClick={handlePayFull}
-            className="w-full h-11 rounded-xl mb-4 border-positive/30 text-positive hover:bg-positive/10 font-medium"
-          >
-            Погасить полностью — {formatCurrency(remaining, currency)}
-          </Button>
-        )}
-
-        {/* Amount input */}
-        <div className="space-y-3 mb-4">
-          <label className="text-sm font-medium text-foreground">
-            Или введите сумму
-          </label>
-          <div className="relative">
-            <Input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="h-14 rounded-xl bg-muted/50 border-border/50 text-2xl font-bold text-center pr-12"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-muted-foreground font-medium">
-              {currencySymbols[currency] || currency}
-            </span>
-          </div>
-        </div>
-
-        {/* Note */}
-        <div className="space-y-3 mb-6">
-          <label className="text-sm font-medium text-foreground">
-            Заметка{" "}
-            <span className="text-muted-foreground font-normal">
-              (необязательно)
-            </span>
-          </label>
-          <Input
-            placeholder="Каспи, наличные..."
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="h-11 rounded-xl bg-muted/50 border-border/50 text-base"
-          />
-        </div>
-
-        {/* Submit */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!amount || parseFloat(amount) <= 0}
-          className="w-full h-12 rounded-xl text-base font-semibold bg-positive hover:bg-positive/90 text-white"
-        >
-          Внести оплату
-        </Button>
       </SheetContent>
     </Sheet>
   );

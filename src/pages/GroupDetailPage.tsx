@@ -102,7 +102,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <h2 className="text-xl font-semibold mb-2">Войдите в аккаунт</h2>
         <p className="text-muted-foreground mb-4">Чтобы просматривать расходы группы</p>
-        <Button onClick={() => navigate("/login")}>
+        <Button onClick={() => navigate("/auth")}>
           <LogIn className="w-4 h-4 mr-2" /> Войти
         </Button>
       </div>

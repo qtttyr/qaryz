@@ -28,7 +28,6 @@ export default function PullToRefresh({
     <div
       {...handlers}
       className={cn("relative touch-pan-y", className)}
-      style={{ touchAction: "pan-x" }}
     >
       {/* Pull indicator */}
       {pullDistance > 0 && (

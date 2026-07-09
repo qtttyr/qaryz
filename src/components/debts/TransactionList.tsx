@@ -172,17 +172,23 @@ export default function TransactionList({ personId }: TransactionListProps) {
                     {timeAgo(entry.date)}
                   </span>
 
-                  {/* Pay button for active debts */}
+                  {/* Pay button — only for owed_to_me (I'm the creditor) */}
                   {isDebt && !debt?.settledAt && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openModal("add-payment", { debtId: debt?.id });
-                      }}
-                      className="text-[11px] text-primary font-medium hover:underline"
-                    >
-                      Погасить
-                    </button>
+                    entry.debtDirection === "owed_to_me" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openModal("add-payment", { debtId: debt?.id });
+                        }}
+                        className="text-[11px] text-primary font-medium hover:underline"
+                      >
+                        Погасить
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground/60 italic">
+                        Ожидает подтверждения
+                      </span>
+                    )
                   )}
 
                   {/* Settled badge */}

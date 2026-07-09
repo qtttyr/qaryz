@@ -65,7 +65,7 @@ export default function GroupsPage() {
         <p className="text-muted-foreground mb-6 max-w-sm">
           Войдите в аккаунт, чтобы создавать группы и делиться расходами с друзьями
         </p>
-        <Button onClick={() => navigate("/login")}>
+        <Button onClick={() => navigate("/auth")}>
           <LogIn className="w-4 h-4 mr-2" /> Войти
         </Button>
       </div>

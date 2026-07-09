@@ -14,16 +14,3 @@ export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
   supabaseAnonKey || "placeholder"
 );
-
-/** Row type for the shared_debts table (with paid_amount column from migration 006) */
-export interface SharedDebtRow {
-  id: string;
-  from_user_id: string;
-  to_user_id: string;
-  amount: number;
-  paid_amount: number;
-  description: string | null;
-  created_by: string;
-  created_at: string;
-  settled_at: string | null;
-}

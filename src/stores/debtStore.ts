@@ -169,6 +169,12 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
     const debt = get().debts.find((d) => d.id === debtId);
     if (!debt) return;
 
+    // Only the creditor can settle — if direction is i_owe, current user is debtor
+    if (debt.direction === "i_owe") {
+      console.warn(`Cannot settle debt ${debtId}: only the creditor can settle i_owe debts.`);
+      return;
+    }
+
     // For shared debts, check that paid_amount covers the full amount
     if (debt.sharedDebtRefId) {
       const sharedDebt = get().sharedDebts.find((sd) => sd.id === debt.sharedDebtRefId);
@@ -240,6 +246,14 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
   // ── Payments ────────────────────────────────────────
 
   addPayment: async (debtId, amount, note) => {
+    const debt = get().debts.find((d) => d.id === debtId);
+
+    // Only the creditor can record payments
+    if (debt?.direction === "i_owe") {
+      console.warn(`Cannot add payment to debt ${debtId}: only the creditor can record payments for i_owe debts.`);
+      return;
+    }
+
     const remaining = get().getRemainingAmount(debtId);
     const isFullPayment = amount >= remaining;
 
@@ -275,7 +289,7 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
     } as never);
 
     // ── Shared debt: update paid_amount via helper ──
-    const debt = get().debts.find((d) => d.id === debtId);
+    // `debt` is already in scope from the guard above
     if (debt?.sharedDebtRefId) {
       const updatedPaid = await incrementSharedDebtPaid(
         debt.sharedDebtRefId,
