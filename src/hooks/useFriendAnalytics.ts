@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useDebtStore } from "@/stores/debtStore";
-import { useUserStore } from "@/stores/userStore";
 import type { Debt, Payment } from "@/types/debt";
 
 // ── Achievement Definition ─────────────────────────────
@@ -78,16 +77,13 @@ function calcAchievements(stats: {
   firstDebtDate: string | null;
   averageDebt: number;
   oldestActiveMonths: number;
-  totalClosedAmount: number;
   hasBothDirections: boolean;
-  biggestDebt: { amount: number } | null;
 }): Achievement[] {
   const {
     activeDebts, closedDebts, totalDebts,
-    totalAllTime, balance, iOwCount, owedToMeCount,
-    debts, totalPaid, firstDebtDate, averageDebt,
-    oldestActiveMonths, totalClosedAmount,
-    hasBothDirections, biggestDebt,
+    totalAllTime, balance,
+    debts, firstDebtDate, averageDebt,
+    oldestActiveMonths, hasBothDirections,
   } = stats;
 
   const achievements: Achievement[] = [];
@@ -458,12 +454,10 @@ export function useFriendAnalytics(friendUserId: string | undefined): FriendAnal
     // ── Achievements ──
     const achievements = calcAchievements({
       activeDebts, closedDebts, totalDebts,
-      totalAllTime, balance: balanceCorrect,
-      iOwCount, owedToMeCount, debts: friendDebts,
-      payments: friendPayments, totalPaid,
+      totalAllTime, balance,
+      debts: friendDebts,
       firstDebtDate, averageDebt,
-      oldestActiveMonths, totalClosedAmount,
-      hasBothDirections, biggestDebt,
+      oldestActiveMonths, hasBothDirections,
     });
 
     const topAchievement = achievements.find((a) => a.unlocked) || null;

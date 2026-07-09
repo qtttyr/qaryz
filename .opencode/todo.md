@@ -1,9 +1,67 @@
-# Mission Tasks
+# Mission: Исправить критические баги и улучшить Qaryz ✅ COMPLETE
 
-## Task List
+## Что сделано
 
-### Fix authStore auto-detect onboarded
-- [x] authStore.ts: syncProfile() auto-detect onboarding for returning users | verified | evidence: build pass, tsc clean
-- [x] friendStore.ts: duplicate request prevention | verified | evidence: build pass, tsc clean
-- [x] AddFriendPage.tsx: clickable avatar → profile navigation | verified | evidence: route exists, build pass
-- [x] Full TypeScript + build — zero code errors | verified | evidence: tsc clean (only baseUrl deprecation), vite build pass
+### Тема: светлая по умолчанию
+- `uiStore.ts`: `theme: "light"` вместо `"dark"`
+- Проверено: `tsc --noEmit` + `vite build` — чисто
+
+### FriendProfilePage — Полная аналитика + геймификация
+
+**`src/hooks/useFriendAnalytics.ts`** — хук для одного друга:
+- Все долги, платежи, баланс, направления
+- totalGiven / totalReceived / balance
+- activeDebts / closedDebts / totalAllTime / averageDebt
+- biggestDebt / smallestActiveDebt
+- monthlyActivity (6 месяцев)
+- oldestActiveMonths
+- **15 достижений** с условиями и редкостью
+
+**`src/components/friends/FriendAchievements.tsx`** — компонент:
+- Герой-достижение (крупный, с градиентом, glow-эффектом)
+- Сетка всех достижений (разблокированные + locked)
+- 4 уровня редкости: legendary / epic / rare / common
+- Цветные градиенты под каждую редкость
+- Анимации появления (Framer Motion)
+
+**`src/pages/FriendProfilePage.tsx`** — полный редизайн:
+- Профиль с аватаром
+- Кнопки: "Добавить долг" / "Удалить из друзей"
+- **Герой-достижение** (самое крутое)
+- **Overview Card** — текущий баланс + разбивка
+- **Quick Stats Row** — всего/активных/закрытых долгов + выплаты
+- **Detail Stats Grid** — средний долг, общая сумма, самый большой, минимальный
+- **Chart** — активность за 6 месяцев (Recharts)
+- **Достижения** (все, если нет героя)
+- **История операций** — хронология с платежами и статусами
+
+### 15 достижений:
+| Ачивка | Условие |
+|--------|---------|
+| 🧘 Дзен-мастер | Нет активных долгов |
+| 🤝 Надёжный друг | 3+ закрытых долгов |
+| 👑 Кредитный король | Сумма > 100k |
+| ⚡ Спринтер | 5+ мелких долгов |
+| 🔄 Качели | Долги в обе стороны |
+| 🎯 Снайпер | Все долги закрыты |
+| 📈 Инвестор | Мне должны больше |
+| 💎 Платиновый клиент | Сумма > 500k |
+| 🏆 Чемпион | 10+ закрытых |
+| 💔 Сердцеед | Я должен больше |
+| 🎖️ Ветеран | Знакомы > года |
+| 💸 Транжира | Средний > 50k |
+| 🐷 Копилка | Все долги < 5k |
+| 🌱 Новичок | Первый долг < 30 дней |
+| 🐢 Черепаха | Долг > 6 мес висит |
+
+### Новые файлы:
+- `src/hooks/useFriendAnalytics.ts` ✨
+- `src/components/friends/FriendAchievements.tsx` ✨
+
+### Изменённые файлы:
+- `src/pages/FriendProfilePage.tsx` — полный редизайн
+- `src/stores/uiStore.ts` — theme: "light"
+
+## Верификация
+- ✅ `tsc --noEmit` — чисто
+- ✅ `vite build` — 2951 modules, 4.91s

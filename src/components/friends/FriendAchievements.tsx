@@ -23,7 +23,6 @@ const rarityBadge: Record<string, string> = {
 
 export default function FriendAchievements({ achievements, compact = false }: FriendAchievementsProps) {
   const unlocked = achievements.filter((a) => a.unlocked);
-  const locked = achievements.filter((a) => !a.unlocked);
 
   if (unlocked.length === 0 && compact) return null;
 

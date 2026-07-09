@@ -72,7 +72,7 @@ function DetailStat({
 // ── Timeline entry ──
 function TimelineEntry({ debt, analytics }: {
   debt: { id: string; amount: number; direction: string; description?: string; createdAt: string; settledAt?: string };
-  analytics: { payments: { debtId: string; amount: number; type: string; createdAt: string }[] };
+  analytics: { payments: { id: string; debtId: string; amount: number; type: string; createdAt: string }[] };
 }) {
   const isSettled = !!debt.settledAt;
   const paid = analytics.payments
