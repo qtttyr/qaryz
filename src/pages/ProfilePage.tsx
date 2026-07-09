@@ -31,6 +31,9 @@ import PullToRefresh from "@/components/layout/PullToRefresh";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Share2 } from "lucide-react";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import PushSetupBanner from "@/components/notifications/PushSetupBanner";
+import { Notification02Icon } from "@hugeicons/core-free-icons";
 
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
@@ -124,9 +127,43 @@ export default function ProfilePage() {
   const syncStatus = useDebtStore((s) => s.syncStatus);
   const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
 
+  // ── Push Notifications ──
+  const {
+    permission: pushPermission,
+    subscribed: pushSubscribed,
+    subscribe: pushSubscribe,
+    unsubscribe: pushUnsubscribe,
+    loading: pushLoading,
+    supported: pushSupported,
+  } = usePushNotifications();
+
+  const [pushBannerDismissed, setPushBannerDismissed] = useState(
+    () => localStorage.getItem("qaryz-push-banner-dismissed") === "true"
+  );
+
+  const showPushBanner = pushSupported && !pushSubscribed && !pushBannerDismissed && pushPermission !== "denied";
+
+  const handleDismissBanner = () => {
+    setPushBannerDismissed(true);
+    localStorage.setItem("qaryz-push-banner-dismissed", "true");
+  };
+
   return (
     <PullToRefresh onRefresh={syncFromSupabase} disabled={syncStatus === "syncing"}>
     <div className="space-y-8 pb-10">
+      {/* Push notification setup banner */}
+      <div className="px-4">
+        <PushSetupBanner
+          visible={showPushBanner}
+          subscribed={pushSubscribed}
+          permission={pushPermission}
+          loading={pushLoading}
+          supported={pushSupported}
+          onEnable={pushSubscribe}
+          onDisable={pushUnsubscribe}
+          onDismiss={handleDismissBanner}
+        />
+      </div>
       {/* Profile Header — Instagram style */}
       <div className="flex flex-col items-center pt-4 pb-6">
         <motion.div
@@ -337,6 +374,49 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {pushSupported && (
+        <>
+          <Separator className="bg-border/50" />
+
+          {/* Push Notifications Settings */}
+          <section className="px-4 space-y-4">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <HugeiconsIcon icon={Notification02Icon} size={18} className="text-primary" />
+              Уведомления
+            </h3>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Push-уведомления</p>
+                <p className="text-xs text-muted-foreground">
+                  {pushSubscribed
+                    ? "Напоминания о долгах приходят даже когда приложение закрыто"
+                    : "Получайте уведомления о новых долгах и платежах"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant={pushSubscribed ? "outline" : "default"}
+                className="h-9 rounded-lg text-xs gap-1.5"
+                onClick={pushSubscribed ? pushUnsubscribe : pushSubscribe}
+                disabled={pushLoading}
+              >
+                {pushLoading ? (
+                  <span className="animate-pulse">...</span>
+                ) : pushSubscribed ? (
+                  "Отключить"
+                ) : (
+                  <>
+                    <HugeiconsIcon icon={Notification02Icon} size={14} />
+                    Включить
+                  </>
+                )}
+              </Button>
+            </div>
+          </section>
+        </>
+      )}
 
       <Separator className="bg-border/50" />
 

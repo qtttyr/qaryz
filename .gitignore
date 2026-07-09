@@ -27,3 +27,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OpenCode (IDE config / tmp files)
+.opencode/todo.md.tmp.*
+.opencode/todo.version.json
+.opencode/docs/
+
+# Playwright MCP (test artifacts)
+.playwright-mcp/
+
+# Dev planning docs (not for production)
+FEATURE_GROUPS.md
+LAUNCH.md
+PLAN_FRIENDS.md
+
+# Supabase CLI temp
+supabase/.temp/

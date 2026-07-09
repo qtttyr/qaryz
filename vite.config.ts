@@ -10,9 +10,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
       registerType: "autoUpdate",
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ["Q.png"],
       manifest: {
+        id: "/",
+        start_url: "/",
         name: "Qaryz - Учёт долгов",
         short_name: "Qaryz",
         description: "Современное приложение для учёта долгов и совместных расходов",
