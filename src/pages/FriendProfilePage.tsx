@@ -2,23 +2,172 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFriendStore } from "@/stores/friendStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useDebtStore } from "@/stores/debtStore";
+import { useUserStore } from "@/stores/userStore";
+import { useFriendAnalytics } from "@/hooks/useFriendAnalytics";
+import FriendAchievements from "@/components/friends/FriendAchievements";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { getInitials, getAvatarColor } from "@/lib/formatters";
-import { ArrowLeft, Plus, Send, LogIn, AlertTriangle } from "lucide-react";
+import { formatCurrency, getInitials, getAvatarColor } from "@/lib/formatters";
+import {
+  ArrowLeft, Plus, Send, LogIn, AlertTriangle,
+  BarChart3, Heart, Target, Clock,
+} from "lucide-react";
+import {
+  Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell,
+} from "recharts";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// ── Mini stat bar ──
+function MiniStat({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+  return (
+    <div className="text-center flex-1">
+      <p className={cn(
+        "text-lg font-bold tabular-nums",
+        accent === "positive" && "text-positive",
+        accent === "negative" && "text-negative",
+        accent === "primary" && "text-primary",
+      )}>
+        {value}
+      </p>
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+// ── Detail stat card ──
+function DetailStat({
+  label, value, icon, accent = "primary", index = 0,
+}: {
+  label: string; value: string | number; icon: React.ReactNode;
+  accent?: "positive" | "negative" | "primary" | "muted"; index?: number;
+}) {
+  const accentStyles = {
+    positive: "bg-positive/10 text-positive",
+    negative: "bg-negative/10 text-negative",
+    primary: "bg-primary/10 text-primary",
+    muted: "bg-muted text-muted-foreground",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05, ease: [0.25, 0.1, 0.25, 1] }}
+      className="rounded-2xl bg-card border border-border/50 p-4 flex items-start gap-3"
+    >
+      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", accentStyles[accent])}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-lg font-bold text-foreground tabular-nums mt-0.5 truncate">{value}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Timeline entry ──
+function TimelineEntry({ debt, analytics }: {
+  debt: { id: string; amount: number; direction: string; description?: string; createdAt: string; settledAt?: string };
+  analytics: { payments: { debtId: string; amount: number; type: string; createdAt: string }[] };
+}) {
+  const isSettled = !!debt.settledAt;
+  const paid = analytics.payments
+    .filter((p) => p.debtId === debt.id)
+    .reduce((s, p) => s + p.amount, 0);
+  const remaining = debt.amount - paid;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={cn(
+        "relative flex items-start gap-3 p-3 rounded-xl transition-colors",
+        isSettled
+          ? "bg-muted/20"
+          : debt.direction === "owed_to_me"
+          ? "bg-positive/5"
+          : "bg-negative/5"
+      )}
+    >
+      {/* Direction dot */}
+      <div className={cn(
+        "w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ring-2 ring-background",
+        isSettled ? "bg-muted-foreground/30" :
+        debt.direction === "owed_to_me" ? "bg-positive" : "bg-negative"
+      )} />
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium truncate">
+            {debt.description || (debt.direction === "owed_to_me" ? "Дал в долг" : "Взял в долг")}
+          </p>
+          <span className={cn(
+            "text-sm font-semibold tabular-nums shrink-0",
+            isSettled ? "text-muted-foreground line-through" :
+            debt.direction === "owed_to_me" ? "text-positive" : "text-negative"
+          )}>
+            {debt.direction === "owed_to_me" ? "+" : "−"}{debt.amount.toLocaleString()} ₸
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[11px] text-muted-foreground">
+            {new Date(debt.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
+          {isSettled && (
+            <span className="text-[10px] text-muted-foreground/50">• Закрыт</span>
+          )}
+          {!isSettled && paid > 0 && (
+            <span className="text-[10px] text-muted-foreground/50">
+              • Выплачено {paid.toLocaleString()} ₸
+            </span>
+          )}
+          {!isSettled && remaining > 0 && (
+            <span className="text-[10px] text-muted-foreground/50">
+              • Осталось {remaining.toLocaleString()} ₸
+            </span>
+          )}
+        </div>
+
+        {/* Payment mini-timeline */}
+        {analytics.payments.filter((p) => p.debtId === debt.id).length > 0 && (
+          <div className="mt-1.5 space-y-0.5 pl-2 border-l-2 border-border/30">
+            {analytics.payments.filter((p) => p.debtId === debt.id).map((p) => (
+              <div key={p.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                <span>
+                  {p.type === "full" ? "Полное погашение" : "Частичная оплата"} —
+                  {p.amount.toLocaleString()} ₸
+                </span>
+                <span className="text-muted-foreground/40">
+                  {new Date(p.createdAt).toLocaleDateString("ru-RU")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN PAGE
+// ═══════════════════════════════════════════════════════════
 
 export default function FriendProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const friends = useFriendStore((s) => s.friends);
-  const debts = useDebtStore((s) => s.debts);
-  const payments = useDebtStore((s) => s.payments);
-  const people = useDebtStore((s) => s.people);
   const removeFriend = useFriendStore((s) => s.removeFriend);
+  const analytics = useFriendAnalytics(id);
+  const currency = useUserStore((s) => s.profile.currency);
 
   const [profile, setProfile] = useState<{
     name: string; username: string; avatar?: string; phone?: string;
@@ -46,7 +195,6 @@ export default function FriendProfilePage() {
       return;
     }
 
-    // Fetch from Supabase directly (for direct link access)
     const fetchProfile = async () => {
       try {
         const { data } = await supabase
@@ -71,7 +219,9 @@ export default function FriendProfilePage() {
   }, [id, user, friend]);
 
   const goBack = () => navigate("/friends");
+  const isFriend = !!friend;
 
+  // ── Guard: no user ──
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -82,6 +232,7 @@ export default function FriendProfilePage() {
     );
   }
 
+  // ── Guard: loading ──
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -90,6 +241,7 @@ export default function FriendProfilePage() {
     );
   }
 
+  // ── Guard: not found ──
   if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -102,28 +254,12 @@ export default function FriendProfilePage() {
     );
   }
 
-  const isFriend = !!friend;
-
-  // Calculate stats
-  const personEntry = people.find((p) => p.id === id);
-  const personDebts = personEntry
-    ? debts.filter((d) => d.personId === personEntry.id)
-    : [];
-  const totalDebts = personDebts.length;
-  const closedDebts = personDebts.filter((d) => d.settledAt).length;
-
-  let balance = 0;
-  for (const debt of personDebts) {
-    if (debt.settledAt) continue;
-    const paid = payments
-      .filter((p) => p.debtId === debt.id)
-      .reduce((sum, p) => sum + p.amount, 0);
-    balance += debt.direction === "owed_to_me" ? (debt.amount - paid) : -(debt.amount - paid);
-  }
+  const hasData = analytics.totalDebts > 0;
+  const chartHasData = analytics.monthlyActivity.some((m) => m.created > 0 || m.settled > 0);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* ═══ Header ═══ */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
         <div className="flex items-center px-4 h-12 gap-3">
           <button onClick={goBack} className="p-1 -ml-1">
@@ -133,24 +269,22 @@ export default function FriendProfilePage() {
         </div>
       </div>
 
+      {/* ═══ Scrollable Content ═══ */}
       <div className="flex-1 overflow-y-auto">
-        {/* Profile header — Instagram style */}
+        {/* ── Profile Header ── */}
         <div className="px-4 pt-6 pb-4 flex items-center gap-5">
-          {/* Avatar */}
           <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 bg-muted ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
             {profile.avatar ? (
               <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
             ) : (
               <div className={cn(
-                "w-full h-full flex items-center justify-center text-xl font-bold text-white",
+                "w-full h-full flex items-center justify-center text-xl font-bold text-white bg-gradient-to-br",
                 getAvatarColor(profile.name)
               )}>
                 {getInitials(profile.name)}
               </div>
             )}
           </div>
-
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold truncate">{profile.name}</h1>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
@@ -160,30 +294,7 @@ export default function FriendProfilePage() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="mx-4 mb-4 flex justify-around py-3 px-2 rounded-2xl bg-card border border-border/50">
-          <div className="text-center">
-            <p className="text-lg font-bold">{totalDebts}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Долгов</p>
-          </div>
-          <div className="w-px bg-border/50" />
-          <div className="text-center">
-            <p className="text-lg font-bold">{closedDebts}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Закрыто</p>
-          </div>
-          <div className="w-px bg-border/50" />
-          <div className="text-center">
-            <p className={cn(
-              "text-lg font-bold",
-              balance > 0 ? "text-emerald-500" : balance < 0 ? "text-red-500" : ""
-            )}>
-              {balance > 0 ? "+" : ""}{balance.toLocaleString()} ₸
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Баланс</p>
-          </div>
-        </div>
-
-        {/* Actions */}
+        {/* ── Actions ── */}
         <div className="px-4 mb-4 flex gap-2">
           <Button className="flex-1 gap-1.5" onClick={() => navigate(`/person/${id}`)}>
             <Plus className="w-4 h-4" /> Добавить долг
@@ -204,72 +315,229 @@ export default function FriendProfilePage() {
           )}
         </div>
 
-        <Separator />
-
-        {/* Debt history */}
-        <div className="px-4 py-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            История
-          </p>
-
-          {personDebts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-                <Plus className="w-6 h-6 text-muted-foreground/60" />
+        {!hasData ? (
+          /* ── Empty State ── */
+          <div className="px-4">
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl bg-card border border-border/50">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Heart className="w-8 h-8 text-muted-foreground/60" />
               </div>
-              <p className="text-sm text-muted-foreground">Нет долгов с этим человеком</p>
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => navigate(`/person/${id}`)}
-                className="mt-1"
-              >
-                Создать первый долг
+              <p className="text-base font-semibold mb-1">Никаких долгов</p>
+              <p className="text-xs text-muted-foreground mb-4 max-w-xs">
+                Пока нет ни одной записи. Начните с добавления первого долга
+              </p>
+              <Button onClick={() => navigate(`/person/${id}`)}>
+                <Plus className="w-4 h-4 mr-1.5" /> Создать долг
               </Button>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {personDebts.slice(0, 20).map((debt) => (
-                <div
-                  key={debt.id}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-xl",
-                    debt.settledAt
-                      ? "bg-muted/30"
-                      : debt.direction === "owed_to_me"
-                      ? "bg-emerald-50/50 dark:bg-emerald-950/20"
-                      : "bg-red-50/50 dark:bg-red-950/20"
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {debt.description || "Долг"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(debt.createdAt).toLocaleDateString("ru-RU")}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className={cn(
-                      "text-sm font-semibold",
-                      debt.settledAt
-                        ? "text-muted-foreground line-through"
-                        : debt.direction === "owed_to_me"
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-red-600 dark:text-red-400"
-                    )}>
-                      {debt.direction === "owed_to_me" ? "+" : "-"}
-                      {debt.amount.toLocaleString()} ₸
-                    </p>
-                    {debt.settledAt && (
-                      <p className="text-[10px] text-muted-foreground">Закрыт</p>
-                    )}
-                  </div>
+
+            {/* Achievements even with no data */}
+            {analytics.achievements.some((a) => a.unlocked) && (
+              <div className="mt-4 px-0">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-0">
+                  Достижения
+                </h3>
+                <FriendAchievements achievements={analytics.achievements} />
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ═══ Full Analytics ═══ */
+          <div className="px-4 space-y-5 pb-6">
+
+            {/* ── Top Achievement Hero ── */}
+            {analytics.topAchievement && (
+              <FriendAchievements achievements={analytics.achievements} />
+            )}
+
+            {/* ── Overview Card ── */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+              className="relative overflow-hidden rounded-2xl bg-card border border-border/50 p-5"
+            >
+              <div className={cn(
+                "absolute top-0 left-0 right-0 h-0.5",
+                analytics.balance >= 0
+                  ? "bg-linear-to-r from-positive/80 to-positive/20"
+                  : "bg-linear-to-r from-negative/80 to-negative/20"
+              )} />
+
+              <div className="text-center mb-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                  Текущий баланс
+                </p>
+                <p className={cn(
+                  "text-3xl font-bold tabular-nums",
+                  analytics.balance > 0 ? "text-positive" :
+                  analytics.balance < 0 ? "text-negative" : "text-muted-foreground"
+                )}>
+                  {analytics.balance > 0 ? "+" : analytics.balance < 0 ? "−" : ""}
+                  {formatCurrency(Math.abs(analytics.balance), currency)}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1 rounded-xl bg-positive/8 p-3.5 text-center">
+                  <p className="text-[11px] text-muted-foreground mb-0.5">Он должен</p>
+                  <p className="text-base font-bold text-positive tabular-nums">
+                    {analytics.owedToMeCount} долг{analytics.owedToMeCount !== 1 ? "ов" : ""}
+                  </p>
                 </div>
-              ))}
+                <div className="flex-1 rounded-xl bg-negative/8 p-3.5 text-center">
+                  <p className="text-[11px] text-muted-foreground mb-0.5">Я должен</p>
+                  <p className="text-base font-bold text-negative tabular-nums">
+                    {analytics.iOwCount} долг{analytics.iOwCount !== 1 ? "ов" : ""}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ── Quick Stats Row ── */}
+            <div className="flex justify-around py-3 px-2 rounded-2xl bg-card border border-border/50">
+              <MiniStat label="Всего долгов" value={analytics.totalDebts} />
+              <div className="w-px bg-border/50" />
+              <MiniStat
+                label="Активных"
+                value={analytics.activeDebts}
+                accent={analytics.activeDebts > 0 ? "negative" : "muted"}
+              />
+              <div className="w-px bg-border/50" />
+              <MiniStat
+                label="Закрыто"
+                value={analytics.closedDebts}
+                accent={analytics.closedDebts > 0 ? "positive" : "muted"}
+              />
+              <div className="w-px bg-border/50" />
+              <MiniStat label="Выплачено" value={analytics.totalPaymentsCount} />
             </div>
-          )}
-        </div>
+
+            {/* ── Detail Stats Grid ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <DetailStat
+                label="Средний долг"
+                value={formatCurrency(analytics.averageDebt, currency)}
+                icon={<BarChart3 className="w-4 h-4" />}
+                accent="primary"
+                index={0}
+              />
+              <DetailStat
+                label="Общая сумма"
+                value={formatCurrency(analytics.totalAllTime, currency)}
+                icon={<Target className="w-4 h-4" />}
+                accent="primary"
+                index={1}
+              />
+              {analytics.biggestDebt && (
+                <DetailStat
+                  label="Самый большой"
+                  value={formatCurrency(analytics.biggestDebt.amount, currency)}
+                  icon={<Heart className="w-4 h-4" />}
+                  accent="negative"
+                  index={2}
+                />
+              )}
+              {analytics.smallestActiveDebt ? (
+                <DetailStat
+                  label="Мин. активный"
+                  value={formatCurrency(analytics.smallestActiveDebt.amount, currency)}
+                  icon={<Clock className="w-4 h-4" />}
+                  accent="muted"
+                  index={3}
+                />
+              ) : analytics.closedDebts > 0 ? (
+                <DetailStat
+                  label="Закрыто на сумму"
+                  value={formatCurrency(analytics.totalClosedAmount, currency)}
+                  icon={<Clock className="w-4 h-4" />}
+                  accent="positive"
+                  index={3}
+                />
+              ) : null}
+            </div>
+
+            {/* ── Monthly Activity Chart ── */}
+            {chartHasData && (
+              <Card className="rounded-2xl border-border/50 bg-card overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Активность за 6 месяцев
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-[180px] px-2 pb-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.monthlyActivity} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="month" axisLine={false} tickLine={false}
+                        tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                      <YAxis axisLine={false} tickLine={false}
+                        tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                      <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.2 }}
+                        contentStyle={{
+                          backgroundColor: "var(--card)", borderColor: "var(--border)",
+                          borderRadius: "12px", fontSize: "12px",
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        }}
+                        itemStyle={{ padding: "2px 0" }}
+                      />
+                      <Bar dataKey="created" name="Новые" radius={[4, 4, 0, 0]} barSize={14}>
+                        {analytics.monthlyActivity.map((_, i) => (
+                          <Cell key={`c-${i}`} fill="var(--primary)" fillOpacity={0.8} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="settled" name="Закрытые" radius={[4, 4, 0, 0]} barSize={14}>
+                        {analytics.monthlyActivity.map((_, i) => (
+                          <Cell key={`s-${i}`} fill="var(--positive)" fillOpacity={0.8} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Achievements Grid ── */}
+            {analytics.achievements.length > 0 && !analytics.topAchievement && (
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Достижения
+                </h3>
+                <FriendAchievements achievements={analytics.achievements} />
+              </div>
+            )}
+
+            <Separator />
+
+            {/* ── Transaction History ── */}
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                История операций
+                <span className="text-[10px] font-normal ml-1.5 text-muted-foreground/60">
+                  {analytics.totalDebts} записей
+                </span>
+              </h3>
+
+              {analytics.debts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center rounded-2xl bg-card border border-border/50">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <Plus className="w-6 h-6 text-muted-foreground/60" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Нет долгов с этим человеком</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {analytics.debts.slice(0, 50).map((debt) => (
+                    <TimelineEntry
+                      key={debt.id}
+                      debt={debt}
+                      analytics={analytics}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
