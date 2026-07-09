@@ -10,6 +10,7 @@ import {
   getInitials,
   timeAgo,
   getAvatarColor,
+  pluralize,
 } from "@/lib/formatters";
 
 interface PersonCardProps {
@@ -82,7 +83,7 @@ export default function PersonCard({ person, index = 0 }: PersonCardProps) {
           <div className="flex items-center justify-between gap-2 mt-0.5">
             <span className="text-xs text-muted-foreground">
               {person.activeDebtsCount > 0
-                ? `${person.activeDebtsCount} активн. долг${person.activeDebtsCount > 1 ? "а" : ""}`
+                ? `${person.activeDebtsCount} ${pluralize(person.activeDebtsCount, ["активный долг", "активных долга", "активных долгов"])}`
                 : "Нет активных долгов"}
             </span>
             <span className="text-xs text-muted-foreground">

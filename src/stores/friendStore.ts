@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "./authStore";
+import { coordinatedSync } from "@/lib/syncCoordinator";
 import type { Friend, FriendRequest } from "@/types/friend";
 
 function generateId(): string {
@@ -43,6 +44,7 @@ export const useFriendStore = create<FriendStore>()(
       syncStatus: "idle",
 
       syncFromSupabase: async () => {
+        await coordinatedSync("friends", async () => {
         const user = useAuthStore.getState().user;
         if (!user) return;
         set({ syncStatus: "syncing" });
@@ -165,6 +167,7 @@ export const useFriendStore = create<FriendStore>()(
           console.error("Failed to sync friends:", e);
           set({ syncStatus: "error" });
         }
+        });
       },
 
       searchUsers: async (query) => {

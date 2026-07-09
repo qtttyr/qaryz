@@ -52,6 +52,21 @@ const avatarColors = [
   "from-fuchsia-500 to-pink-500",
 ];
 
+/**
+ * Russian pluralization helper.
+ * Forms: [one, few, many] — e.g., ["долг", "долга", "долгов"]
+ * Examples: 1 долг, 2 долга, 5 долгов, 21 долг
+ */
+export function pluralize(count: number, forms: [string, string, string]): string {
+  const abs = Math.abs(count);
+  const lastDigit = abs % 10;
+  const lastTwo = abs % 100;
+  if (lastTwo >= 11 && lastTwo <= 19) return forms[2];
+  if (lastDigit === 1) return forms[0];
+  if (lastDigit >= 2 && lastDigit <= 4) return forms[1];
+  return forms[2];
+}
+
 export function getAvatarColor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {

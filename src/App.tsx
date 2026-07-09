@@ -1,40 +1,34 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { useUIStore } from "./stores/uiStore";
 import { useAuthStore } from "./stores/authStore";
 import { useDebtStore } from "./stores/debtStore";
+import { ToastContainer } from "@/components/shared/Toast";
 
 function App() {
   const theme = useUIStore((s) => s.theme);
   const initialize = useAuthStore((s) => s.initialize);
   const authState = useAuthStore((s) => s.state);
-  const syncFromSupabase = useDebtStore((s) => s.syncFromSupabase);
   const setData = useDebtStore((s) => s.setData);
-  const prevAuthState = useRef(authState);
 
-  // Initialize auth on mount
+  // Initialize auth on mount — authStore handles syncing internally
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  // Handle auth state changes: sync on login, clear on logout
+  // Just logged out — clear local data immediately
   useEffect(() => {
-    const prev = prevAuthState.current;
-    prevAuthState.current = authState;
-
-    // On login OR cold-start with existing session
-    if (authState === "authenticated" && (prev === "unauthenticated" || prev === "loading")) {
-      syncFromSupabase();
+    if (authState === "unauthenticated") {
+      // Only clear when transitioning away from authenticated (not on initial unauthenticated)
+      const debts = localStorage.getItem("qaryz-debts");
+      if (debts) {
+        localStorage.removeItem("qaryz-debts");
+        localStorage.removeItem("qaryz-user");
+        setData({ debts: [], payments: [], people: [] });
+      }
     }
-
-    // Just logged out — clear local data immediately
-    if (authState === "unauthenticated" && prev === "authenticated") {
-      localStorage.removeItem("qaryz-debts");
-      localStorage.removeItem("qaryz-user");
-      setData({ debts: [], payments: [], people: [] });
-    }
-  }, [authState, syncFromSupabase, setData]);
+  }, [authState, setData]);
 
   // Apply theme
   useEffect(() => {
@@ -45,7 +39,12 @@ function App() {
     }
   }, [theme]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <ToastContainer />
+    </>
+  );
 }
 
 export default App;

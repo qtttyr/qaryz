@@ -28,8 +28,21 @@ export interface Database {
         Insert: PaymentInsert;
         Update: PaymentUpdate;
       };
+      shared_debts: {
+        Row: SharedDebtRow;
+        Insert: SharedDebtInsert;
+        Update: SharedDebtUpdate;
+      };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      increment_shared_debt_paid: {
+        Args: {
+          debt_id: string;
+          inc_amount: number;
+        };
+        Returns: number;
+      };
+    };
     Enums: Record<string, never>;
   };
 }
@@ -142,4 +155,34 @@ export interface PaymentUpdate {
   amount?: number;
   note?: string | null;
   type?: "partial" | "full";
+}
+
+// ── Shared Debts ────────────────────────────────────────────
+export interface SharedDebtRow {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  amount: number;
+  paid_amount: number;
+  description: string | null;
+  created_by: string;
+  created_at: string;
+  settled_at: string | null;
+  updated_at: string;
+}
+
+export interface SharedDebtInsert {
+  id?: string;
+  from_user_id: string;
+  to_user_id: string;
+  amount: number;
+  paid_amount?: number;
+  description?: string | null;
+  created_by: string;
+}
+
+export interface SharedDebtUpdate {
+  paid_amount?: number;
+  settled_at?: string | null;
+  description?: string | null;
 }

@@ -42,11 +42,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ user: null, session: null, state: "unauthenticated" });
       }
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session) {
           set({ user: session.user, session, state: "authenticated" });
           const store = useAuthStore.getState();
-          store.syncProfile();
+          await store.syncProfile();
           useFriendStore.getState().syncFromSupabase();
           useDebtStore.getState().syncFromSupabase();
         } else {

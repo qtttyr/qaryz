@@ -1,8 +1,44 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "./authStore";
+import { showToast } from "@/components/shared/Toast";
+import { coordinatedSync } from "@/lib/syncCoordinator";
 import type { Debt, DebtDirection, Payment, Person } from "@/types/debt";
 import type { SharedDebt } from "@/types/friend";
+
+// ── Helper: safely call Supabase RPC or fallback ──
+async function incrementSharedDebtPaid(
+  debtId: string,
+  amount: number
+): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc("increment_shared_debt_paid", {
+      debt_id: debtId,
+      inc_amount: amount,
+    });
+    if (error) {
+      console.error("incrementSharedDebtPaid RPC error:", error);
+      // Fallback: direct update
+      const { data: sd } = await supabase
+        .from("shared_debts")
+        .select("paid_amount, amount")
+        .eq("id", debtId)
+        .single();
+      const currentPaid = Number((sd as Record<string, unknown>)?.paid_amount ?? 0);
+      const maxAmount = Number((sd as Record<string, unknown>)?.amount ?? 0);
+      const newPaid = Math.min(currentPaid + amount, maxAmount);
+      await supabase
+        .from("shared_debts")
+        .update({ paid_amount: newPaid })
+        .eq("id", debtId);
+      return newPaid;
+    }
+    return Number(data ?? 0);
+  } catch (e) {
+    console.error("Failed to update shared_debt paid_amount:", e);
+    return 0;
+  }
+}
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -131,6 +167,21 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
 
   settleDebt: async (debtId) => {
     const debt = get().debts.find((d) => d.id === debtId);
+    if (!debt) return;
+
+    // For shared debts, check that paid_amount covers the full amount
+    if (debt.sharedDebtRefId) {
+      const sharedDebt = get().sharedDebts.find((sd) => sd.id === debt.sharedDebtRefId);
+      const paid = sharedDebt?.paidAmount ?? 0;
+      if (paid < debt.amount) {
+        console.warn(
+          `Cannot settle shared debt ${debtId}: paid_amount (${paid}) < amount (${debt.amount}). ` +
+          `Use addPayment to record payments first.`
+        );
+        return;
+      }
+    }
+
     const settledAt = new Date().toISOString();
     set((state) => ({
       debts: state.debts.map((d) => (d.id === debtId ? { ...d, settledAt } : d)),
@@ -139,22 +190,26 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
     const user = useAuthStore.getState().user;
     if (!user) return;
 
-    if (debt?.sharedDebtRefId) {
-      // Shared debt — update shared_debts table
-      const { error } = await supabase
+    if (debt.sharedDebtRefId) {
+      // Shared debt — update shared_debts table + local state
+      await supabase
         .from("shared_debts")
         .update({ settled_at: settledAt })
         .eq("id", debt.sharedDebtRefId);
-      if (error) console.error("settleSharedDebt error:", error);
+      set((s) => ({
+        sharedDebts: s.sharedDebts.map((sd) =>
+          sd.id === debt.sharedDebtRefId ? { ...sd, settledAt } : sd
+        ),
+      }));
     } else {
       // Regular debt — update debts table
-      const { error } = await supabase.from("debts").update({ settled_at: settledAt } as never).eq("id", debtId).eq("user_id", user.id);
-      if (error) console.error("settleDebt error:", error);
+      await supabase.from("debts").update({ settled_at: settledAt } as never).eq("id", debtId).eq("user_id", user.id);
     }
   },
 
   removeDebt: async (debtId) => {
     const debt = get().debts.find((d) => d.id === debtId);
+    const settledAt = new Date().toISOString();
 
     set((state) => ({
       debts: state.debts.filter((d) => d.id !== debtId),
@@ -166,11 +221,14 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
 
     // If this is a shared debt, mark the shared_debts row as settled so it never reappears
     if (debt?.sharedDebtRefId) {
-      const { error } = await supabase
+      await supabase
         .from("shared_debts")
-        .update({ settled_at: new Date().toISOString() })
+        .update({ settled_at: settledAt })
         .eq("id", debt.sharedDebtRefId);
-      if (error) console.error("removeSharedDebt: failed to mark settled", error);
+      // Also update local sharedDebts to prevent reappearance until next sync
+      set((s) => ({
+        sharedDebts: s.sharedDebts.filter((sd) => sd.id !== debt.sharedDebtRefId),
+      }));
       return;
     }
 
@@ -216,23 +274,41 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
       type: newPayment.type,
     } as never);
 
-    if (isFullPayment) {
-      // Check if this is a shared debt — update the RIGHT table
-      const debt = get().debts.find((d) => d.id === debtId);
-      if (debt?.sharedDebtRefId) {
-        // Shared debt: update shared_debts.settled_at so BOTH users see it as closed
+    // ── Shared debt: update paid_amount via helper ──
+    const debt = get().debts.find((d) => d.id === debtId);
+    if (debt?.sharedDebtRefId) {
+      const updatedPaid = await incrementSharedDebtPaid(
+        debt.sharedDebtRefId,
+        newPayment.amount
+      );
+
+      // Update local sharedDebts paid_amount
+      set((s) => ({
+        sharedDebts: s.sharedDebts.map((sd) =>
+          sd.id === debt.sharedDebtRefId ? { ...sd, paidAmount: updatedPaid } : sd
+        ),
+      }));
+
+      // If fully paid now, also mark settled in shared_debts
+      if (updatedPaid >= debt.amount) {
+        const settledAt = new Date().toISOString();
         await supabase
           .from("shared_debts")
-          .update({ settled_at: new Date().toISOString() })
+          .update({ settled_at: settledAt })
           .eq("id", debt.sharedDebtRefId);
-      } else {
-        // Regular debt: update the debts table
-        await supabase
-          .from("debts")
-          .update({ settled_at: new Date().toISOString() } as never)
-          .eq("id", debtId)
-          .eq("user_id", user.id);
+        set((s) => ({
+          sharedDebts: s.sharedDebts.map((sd) =>
+            sd.id === debt.sharedDebtRefId ? { ...sd, settledAt } : sd
+          ),
+        }));
       }
+    } else if (isFullPayment) {
+      // Regular debt: update the debts table
+      await supabase
+        .from("debts")
+        .update({ settled_at: new Date().toISOString() } as never)
+        .eq("id", debtId)
+        .eq("user_id", user.id);
     }
   },
 
@@ -298,6 +374,7 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
       fromUserId,
       toUserId,
       amount,
+      paidAmount: 0,
       description: description || undefined,
       createdBy: user.id,
       createdAt: new Date().toISOString(),
@@ -312,10 +389,14 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
     const user = useAuthStore.getState().user;
     if (!user) return;
 
+    // Set paidAmount = amount (fully paid) then mark settled
     const settledAt = new Date().toISOString();
+    const sd = get().sharedDebts.find((d) => d.id === debtId);
+    const updatedPaidAmount = sd ? sd.amount : 0;
+
     set((s) => ({
       sharedDebts: s.sharedDebts.map((d) =>
-        d.id === debtId ? { ...d, settledAt } : d
+        d.id === debtId ? { ...d, settledAt, paidAmount: updatedPaidAmount } : d
       ),
       debts: s.debts.map((d) =>
         d.sharedDebtRefId === debtId ? { ...d, settledAt } : d
@@ -324,7 +405,7 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
 
     await supabase
       .from("shared_debts")
-      .update({ settled_at: settledAt })
+      .update({ settled_at: settledAt, paid_amount: updatedPaidAmount })
       .eq("id", debtId);
   },
 
@@ -374,9 +455,15 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
       // Step 4: build state — deterministic IDs from shared_debts.id
       const sharedList: SharedDebt[] = [];
       const peopleSet = new Set(get().people.map((p) => p.id));
-      const existingIds = new Set(get().debts.map((d) => d.id));
       const newPeople: Person[] = [];
-      const newDebts: Debt[] = [];
+      const debtMap = new Map<string, Debt>();
+
+      // Start with existing non-shared debts
+      for (const d of get().debts) {
+        if (!d.sharedDebtRefId) {
+          debtMap.set(d.id, d);
+        }
+      }
 
       for (const d of rows) {
         // Skip rows with settled_at (deleted or fully paid)
@@ -387,12 +474,15 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
           ? (d.to_user_id as string)
           : (d.from_user_id as string);
         const otherProfile = profileMap[otherUserId] || {};
+        const sdId = d.id as string;
+        const paidAmount = Number(d.paid_amount ?? 0);
 
         sharedList.push({
-          id: d.id as string,
+          id: sdId,
           fromUserId: d.from_user_id as string,
           toUserId: d.to_user_id as string,
           amount: Number(d.amount),
+          paidAmount,
           description: (d.description as string) || undefined,
           createdBy: d.created_by as string,
           createdAt: d.created_at as string,
@@ -416,20 +506,17 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
         const debtDir: DebtDirection =
           d.from_user_id === user.id ? "i_owe" : "owed_to_me";
 
-        // Use shared_debts.id as the Debt.id — deterministic, no duplicates
-        const sdId = d.id as string;
-        if (!existingIds.has(sdId)) {
-          existingIds.add(sdId);
-          newDebts.push({
-            id: sdId,
-            personId: otherUserId,
-            direction: debtDir,
-            amount: Number(d.amount),
-            description: (d.description as string) || undefined,
-            createdAt: d.created_at as string,
-            sharedDebtRefId: sdId,
-          });
-        }
+        // Always add/replace debt entry for every active shared debt
+        // Always use the FULL original amount — paid_amount is tracked separately
+        debtMap.set(sdId, {
+          id: sdId,
+          personId: otherUserId,
+          direction: debtDir,
+          amount: Number(d.amount),
+          description: (d.description as string) || undefined,
+          createdAt: d.created_at as string,
+          sharedDebtRefId: sdId,
+        });
       }
 
       set((s) => ({
@@ -438,11 +525,7 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
           ...s.people,
           ...newPeople.filter((np) => !s.people.some((p) => p.id === np.id)),
         ],
-        // Replace existing debts — remove old shared debt entries, add new ones
-        debts: [
-          ...s.debts.filter((d) => !d.sharedDebtRefId),
-          ...newDebts,
-        ],
+        debts: Array.from(debtMap.values()),
       }));
     } catch (e) {
       console.error("Failed to sync shared debts:", e);
@@ -452,48 +535,51 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
   // ── Sync ────────────────────────────────────────────
 
   syncFromSupabase: async () => {
-    const user = useAuthStore.getState().user;
-    if (!user) return;
+    await coordinatedSync("debts", async () => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
 
-    set({ syncStatus: "syncing" });
+      set({ syncStatus: "syncing" });
 
-    try {
-      // Sync shared debts first — adds Person and Debt entries from shared_debts table
-      await get().syncSharedDebts();
+      try {
+        // Sync shared debts first
+        await get().syncSharedDebts();
 
-      // Fetch server data: this is THE source of truth for these tables
-      const [personsRes, debtsRes, paymentsRes] = await Promise.all([
-        supabase.from("persons").select("*").eq("user_id", user.id),
-        supabase.from("debts").select("*").eq("user_id", user.id),
-        supabase.from("payments").select("*").eq("user_id", user.id),
-      ]);
+        // Fetch server data
+        const [personsRes, debtsRes, paymentsRes] = await Promise.all([
+          supabase.from("persons").select("*").eq("user_id", user.id),
+          supabase.from("debts").select("*").eq("user_id", user.id),
+          supabase.from("payments").select("*").eq("user_id", user.id),
+        ]);
 
-      if (personsRes.error) console.error("syncFromSupabase persons error:", personsRes.error);
-      if (debtsRes.error) console.error("syncFromSupabase debts error:", debtsRes.error);
-      if (paymentsRes.error) console.error("syncFromSupabase payments error:", paymentsRes.error);
+        if (personsRes.error) {
+          console.error("syncFromSupabase persons error:", personsRes.error);
+          showToast("Ошибка синхронизации людей", "error");
+        }
+        if (debtsRes.error) {
+          console.error("syncFromSupabase debts error:", debtsRes.error);
+          showToast("Ошибка синхронизации долгов", "error");
+        }
+        if (paymentsRes.error) {
+          console.error("syncFromSupabase payments error:", paymentsRes.error);
+          showToast("Ошибка синхронизации платежей", "error");
+        }
 
-      // Map server data
-      const serverPeople: Person[] = (personsRes.data || []).map((p: Record<string, unknown>) => ({
-        id: p.id as string,
-        name: p.name as string,
-        avatar: (p.avatar_url as string) || undefined,
-        phone: (p.phone as string) || undefined,
-        createdAt: p.created_at as string,
-      }));
+        // Map server data
+        const serverPeople: Person[] = (personsRes.data || []).map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          name: p.name as string,
+          avatar: (p.avatar_url as string) || undefined,
+          phone: (p.phone as string) || undefined,
+          createdAt: p.created_at as string,
+        }));
 
-      const serverDebtIds = new Set((debtsRes.data || []).map((d: Record<string, unknown>) => d.id as string));
+        const currentState = get();
+        const serverPersonIds = new Set(serverPeople.map((p) => p.id));
+        const serverPaymentIds = new Set((paymentsRes.data || []).map((p: Record<string, unknown>) => p.id as string));
+        const serverDebtIds = new Set((debtsRes.data || []).map((d: Record<string, unknown>) => d.id as string));
 
-      // After syncSharedDebts, the store has shared debt entries.
-      // Keep ALL server debts + shared debt entries (they have sharedDebtRefId, not in server)
-      const currentState = get();
-      const serverPersonIds = new Set(serverPeople.map((p) => p.id));
-
-      set({
-        people: [
-          ...serverPeople,
-          ...currentState.people.filter((p) => !serverPersonIds.has(p.id)),
-        ],
-        debts: [
+        const mergedDebts: Debt[] = [
           ...(debtsRes.data || []).map((d: Record<string, unknown>) => ({
             id: d.id as string,
             personId: d.person_id as string,
@@ -504,20 +590,37 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
             settledAt: (d.settled_at as string) || undefined,
           })),
           ...currentState.debts.filter((d) => d.sharedDebtRefId && !serverDebtIds.has(d.id)),
-        ] as Debt[],
-        payments: (paymentsRes.data || []).map((p: Record<string, unknown>) => ({
+        ] as Debt[];
+
+        const serverPayments: Payment[] = (paymentsRes.data || []).map((p: Record<string, unknown>) => ({
           id: p.id as string,
           debtId: p.debt_id as string,
           amount: Number(p.amount),
           note: (p.note as string) || undefined,
           createdAt: p.created_at as string,
           type: p.type as "partial" | "full",
-        })) as Payment[],
-        syncStatus: "synced",
-      });
-    } catch {
-      set({ syncStatus: "error" });
-    }
+        })) as Payment[];
+
+        const localSharedPayments = currentState.payments.filter(
+          (p) => !serverPaymentIds.has(p.id) && currentState.debts.some(
+            (d) => d.id === p.debtId && !!d.sharedDebtRefId
+          )
+        );
+
+        set({
+          people: [
+            ...serverPeople,
+            ...currentState.people.filter((p) => !serverPersonIds.has(p.id)),
+          ],
+          debts: mergedDebts,
+          payments: [...serverPayments, ...localSharedPayments],
+          syncStatus: "synced",
+        });
+      } catch (e) {
+        console.error("syncFromSupabase failed:", e);
+        set({ syncStatus: "error" });
+      }
+    });
   },
 
   setData: (data) => {
@@ -531,16 +634,21 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
   },
 
   getPersonBalance(personId) {
-    const { debts, payments } = get();
+    const { debts, payments, sharedDebts } = get();
     const personDebts = debts.filter((d) => d.personId === personId);
 
     let balance = 0;
     for (const debt of personDebts) {
       if (debt.settledAt) continue;
-      const paidAmount = payments
+      const paidFromPayments = payments
         .filter((p) => p.debtId === debt.id)
         .reduce((sum, p) => sum + p.amount, 0);
-      const remaining = debt.amount - paidAmount;
+      // For shared debts, also consider paid_amount from shared_debts table
+      const paidFromShared = debt.sharedDebtRefId
+        ? (sharedDebts.find((sd) => sd.id === debt.sharedDebtRefId)?.paidAmount ?? 0)
+        : 0;
+      const totalPaid = Math.max(paidFromPayments, paidFromShared);
+      const remaining = Math.max(0, debt.amount - totalPaid);
       balance += debt.direction === "owed_to_me" ? remaining : -remaining;
     }
     return balance;
@@ -549,10 +657,15 @@ export const useDebtStore = create<DebtStore>()((set, get) => ({
   getRemainingAmount(debtId) {
     const debt = get().debts.find((d) => d.id === debtId);
     if (!debt) return 0;
-    const paid = get()
+    const paidFromPayments = get()
       .payments.filter((p) => p.debtId === debtId)
       .reduce((sum, p) => sum + p.amount, 0);
-    return Math.max(0, debt.amount - paid);
+    // For shared debts, also consider paid_amount from shared_debts table
+    const paidFromShared = debt.sharedDebtRefId
+      ? (get().sharedDebts.find((sd) => sd.id === debt.sharedDebtRefId)?.paidAmount ?? 0)
+      : 0;
+    const totalPaid = Math.max(paidFromPayments, paidFromShared);
+    return Math.max(0, debt.amount - totalPaid);
   },
 
   getDebtsForPerson(personId) {

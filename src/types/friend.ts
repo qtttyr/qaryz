@@ -27,6 +27,7 @@ export interface SharedDebt {
   fromUserId: string;
   toUserId: string;
   amount: number;
+  paidAmount: number;
   description?: string;
   createdBy: string;
   createdAt: string;
