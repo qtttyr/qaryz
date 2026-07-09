@@ -11,6 +11,13 @@ precacheAndRoute(self.__WB_MANIFEST);
 self.skipWaiting();
 clientsClaim();
 
+// Listen for "skip waiting" command from the app
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // Push event — show notification
 self.addEventListener("push", (event) => {
   let data: {

@@ -5,6 +5,8 @@ import { useUIStore } from "./stores/uiStore";
 import { useAuthStore } from "./stores/authStore";
 import { useDebtStore } from "./stores/debtStore";
 import { ToastContainer } from "@/components/shared/Toast";
+import { useSWUpdate } from "@/hooks/useSWUpdate";
+import UpdateBanner from "@/components/notifications/UpdateBanner";
 
 function App() {
   const theme = useUIStore((s) => s.theme);
@@ -39,10 +41,18 @@ function App() {
     }
   }, [theme]);
 
+  // Service worker update detection
+  const { needsRefresh, update, dismiss } = useSWUpdate();
+
   return (
     <>
       <RouterProvider router={router} />
       <ToastContainer />
+      <UpdateBanner
+        visible={needsRefresh}
+        onUpdate={update}
+        onDismiss={dismiss}
+      />
     </>
   );
 }
