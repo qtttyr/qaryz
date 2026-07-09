@@ -1,67 +1,65 @@
-# Mission: Исправить критические баги и улучшить Qaryz ✅ COMPLETE
+# Mission: Push-уведомления для Qaryz (iOS + Free) ✅ COMPLETE
 
-## Что сделано
+## M1: Service Worker + Vite Config | status: completed ✅
+### T1.1: Vite config → injectManifest | agent:Worker | status: completed ✅
+- [x] S1.1.1: Switch to `strategies: 'injectManifest'`, add `srcDir: 'src'`, `filename: 'sw.ts'` | verified (already in vite.config.ts)
+- [x] S1.1.2: Add `id: "/"` and `start_url: "/"` to manifest (iOS 16.4+ requirement) | verified (already in vite.config.ts)
 
-### Тема: светлая по умолчанию
-- `uiStore.ts`: `theme: "light"` вместо `"dark"`
-- Проверено: `tsc --noEmit` + `vite build` — чисто
+### T1.2: Create custom service worker | agent:Worker | status: completed ✅
+- [x] S1.2.1: Create `src/sw.ts` with precacheAndRoute, skipWaiting, clientsClaim | verified (build passes)
+- [x] S1.2.2: Add `push` event listener → showNotification with body/data | verified (build passes)
+- [x] S1.2.3: Add `notificationclick` → focus client or open app | verified (build passes)
 
-### FriendProfilePage — Полная аналитика + геймификация
+## M2: Supabase — Таблицы и RLS | status: completed ✅
+### T2.1: Migration 007 | agent:Worker | status: completed ✅
+- [x] S2.1.1: Create `007_push_subscriptions.sql` — push_subscriptions table + RLS + unique per user | verified
+- [x] S2.1.2: Create `notifications` table (history) + RLS + tag/delivered columns | verified
 
-**`src/hooks/useFriendAnalytics.ts`** — хук для одного друга:
-- Все долги, платежи, баланс, направления
-- totalGiven / totalReceived / balance
-- activeDebts / closedDebts / totalAllTime / averageDebt
-- biggestDebt / smallestActiveDebt
-- monthlyActivity (6 месяцев)
-- oldestActiveMonths
-- **15 достижений** с условиями и редкостью
+## M3: Edge Function — send-push | status: completed ✅
+### T3.1: Edge Function | agent:Worker | status: completed ✅
+- [x] S3.1.1: Create `supabase/functions/send-push/index.ts` — web-push send with VAPID | verified
+- [x] S3.1.2: Create `supabase/functions/send-push/deno.json` — import map for web-push | verified
+- [x] S3.1.3: Handle VAPID keys from Deno.env, expired subscription cleanup | verified
 
-**`src/components/friends/FriendAchievements.tsx`** — компонент:
-- Герой-достижение (крупный, с градиентом, glow-эффектом)
-- Сетка всех достижений (разблокированные + locked)
-- 4 уровня редкости: legendary / epic / rare / common
-- Цветные градиенты под каждую редкость
-- Анимации появления (Framer Motion)
+## M4: Клиент — подписка и UI | status: completed ✅
+### T4.1: Хук usePushNotifications | agent:Worker | status: completed ✅
+- [x] S4.1.1: Create `src/hooks/usePushNotifications.ts` — permission + subscribe + unsubscribe | verified
+- [x] S4.1.2: VAPID public key fetch from `VITE_VAPID_PUBLIC_KEY` env | verified
+- [x] S4.1.3: Subscription CRUD → Supabase push_subscriptions table via direct insert/upsert | verified
 
-**`src/pages/FriendProfilePage.tsx`** — полный редизайн:
-- Профиль с аватаром
-- Кнопки: "Добавить долг" / "Удалить из друзей"
-- **Герой-достижение** (самое крутое)
-- **Overview Card** — текущий баланс + разбивка
-- **Quick Stats Row** — всего/активных/закрытых долгов + выплаты
-- **Detail Stats Grid** — средний долг, общая сумма, самый большой, минимальный
-- **Chart** — активность за 6 месяцев (Recharts)
-- **Достижения** (все, если нет героя)
-- **История операций** — хронология с платежами и статусами
+### T4.2: UI-компоненты | agent:Worker | status: completed ✅
+- [x] S4.2.1: Create `src/components/notifications/PushSetupBanner.tsx` — плавная анимация, 3 состояния | verified
+- [x] S4.2.2: Add секцию "Уведомления" в ProfilePage с toggle + баннером + настройками | verified
 
-### 15 достижений:
-| Ачивка | Условие |
-|--------|---------|
-| 🧘 Дзен-мастер | Нет активных долгов |
-| 🤝 Надёжный друг | 3+ закрытых долгов |
-| 👑 Кредитный король | Сумма > 100k |
-| ⚡ Спринтер | 5+ мелких долгов |
-| 🔄 Качели | Долги в обе стороны |
-| 🎯 Снайпер | Все долги закрыты |
-| 📈 Инвестор | Мне должны больше |
-| 💎 Платиновый клиент | Сумма > 500k |
-| 🏆 Чемпион | 10+ закрытых |
-| 💔 Сердцеед | Я должен больше |
-| 🎖️ Ветеран | Знакомы > года |
-| 💸 Транжира | Средний > 50k |
-| 🐷 Копилка | Все долги < 5k |
-| 🌱 Новичок | Первый долг < 30 дней |
-| 🐢 Черепаха | Долг > 6 мес висит |
+## M5: Автоматические уведомления | status: completed ✅
+### T5.1: Database Webhook обработчики | agent:Worker | status: completed ✅
+- [x] S5.1.1: `supabase/functions/debt-webhook/index.ts` — INSERT shared_debts → push | verified
+- [x] S5.1.2: `supabase/functions/payment-webhook/index.ts` — INSERT payments → push | verified
 
-### Новые файлы:
-- `src/hooks/useFriendAnalytics.ts` ✨
-- `src/components/friends/FriendAchievements.tsx` ✨
+## M6: Финальная верификация | status: completed ✅
+### T6.1: Проверка | agent:Reviewer | status: completed ✅
+- [x] S6.1.1: `tsc --noEmit` — чисто (только pre-existing TS5101 deprecation) | verified
+- [x] S6.1.2: `vite build` — чисто (main app + sw.ts injection) | verified
+- [x] S6.1.3: Проверка безопасности:
+  - VAPID private key: только в Deno.env, никогда в клиенте ✅
+  - RLS: push_subscriptions — user-scoped, notifications — user-scoped + system insert ✅
+  - service_role: только в edge functions, не в клиенте ✅
+  - Нет хардкоженных секретов в исходниках ✅
+- [x] S6.1.4: iOS-ready:
+  - manifest `id: "/"` ✅
+  - manifest `start_url: "/"` ✅
+  - `display: "standalone"` ✅
+  - Иконки 192x192 + 512x512 + maskable ✅
+  - Service worker с push/notificationclick ✅
 
-### Изменённые файлы:
-- `src/pages/FriendProfilePage.tsx` — полный редизайн
-- `src/stores/uiStore.ts` — theme: "light"
+## Summary
+| Milestone | Status |
+|-----------|--------|
+| M1: Service Worker + Vite Config | ✅ |
+| M2: Supabase — Таблицы и RLS | ✅ |
+| M3: Edge Function — send-push | ✅ |
+| M4: Клиент — подписка и UI | ✅ |
+| M5: Автоматические уведомления | ✅ |
+| M6: Финальная верификация | ✅ |
 
-## Верификация
-- ✅ `tsc --noEmit` — чисто
-- ✅ `vite build` — 2951 modules, 4.91s
+**Mission Complete!** 🚀

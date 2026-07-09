@@ -168,6 +168,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
     });
 
     if (error) return { error: error.message };
+
+    // Email confirmation required — session is null until email is confirmed
+    if (!data.session && data.user) {
+      return { error: "NEEDS_CONFIRMATION" };
+    }
+
     if (data.session) {
       set({ user: data.user, session: data.session, state: "authenticated" });
     }

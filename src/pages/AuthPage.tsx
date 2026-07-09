@@ -21,6 +21,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
@@ -34,6 +35,12 @@ export default function AuthPage() {
     const result = await action;
 
     setLoading(false);
+
+    if (result.error === "NEEDS_CONFIRMATION") {
+      setConfirmed(true);
+      return;
+    }
+
     if (result.error) {
       setError(result.error);
     }
@@ -84,8 +91,36 @@ export default function AuthPage() {
           </motion.p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Confirmation screen */}
+        {confirmed ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-4 py-8"
+          >
+            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center">
+              <HugeiconsIcon icon={AiMailIcon} size={28} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Проверьте почту</h2>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                Мы отправили письмо с подтверждением на <strong>{email}</strong>
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Не пришло? Проверьте спам или{' '}
+                <button
+                  type="button"
+                  onClick={() => setConfirmed(false)}
+                  className="text-primary underline hover:no-underline"
+                >
+                  попробуйте другой email
+                </button>
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <>
+          <form onSubmit={handleSubmit} className="space-y-4">
           <AnimatePresence mode="wait">
             {mode === "register" && (
               <motion.div
@@ -144,7 +179,7 @@ export default function AuthPage() {
               className="pl-10 pr-10 h-12 rounded-xl bg-card border-border/50 focus-visible:ring-primary/20"
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               required
-              minLength={6}
+              minLength={8}
             />
             <button
               type="button"
@@ -184,19 +219,20 @@ export default function AuthPage() {
           </Button>
         </form>
 
-        {/* Switch mode */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            {mode === "login" ? "Нет аккаунта?" : "Уже есть аккаунт?"}{" "}
-            <button
-              type="button"
-              onClick={switchMode}
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              {mode === "login" ? "Зарегистрироваться" : "Войти"}
-            </button>
-          </p>
-        </div>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              {mode === "login" ? "Нет аккаунта?" : "Уже есть аккаунт?"}{" "}
+              <button
+                type="button"
+                onClick={switchMode}
+                className="text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                {mode === "login" ? "Зарегистрироваться" : "Войти"}
+              </button>
+            </p>
+          </div>
+          </>
+        )}
       </motion.div>
     </div>
   );

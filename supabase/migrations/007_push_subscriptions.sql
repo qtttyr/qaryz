@@ -76,7 +76,11 @@ create policy "Users can view own notifications"
 drop policy if exists "System can insert notifications" on public.notifications;
 create policy "System can insert notifications"
   on public.notifications for insert
-  with check (true);  -- service_role can insert via edge function
+  with check (
+    -- Regular users: insert only own notifications
+    -- Service role (from edge functions): can insert for any user
+    user_id = auth.uid() OR auth.role() = 'service_role'
+  );
 
 drop policy if exists "Users can mark notifications as read" on public.notifications;
 create policy "Users can mark notifications as read"
