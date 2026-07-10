@@ -41,7 +41,12 @@ function FloatingStats() {
             key={stat.label}
             initial={{ opacity: 0, y: 30, scale: 0.8 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.8 + i * 0.25, type: "spring", damping: 18, stiffness: 150 }}
+            transition={{
+              delay: 0.8 + i * 0.25,
+              type: "spring",
+              damping: 18,
+              stiffness: 150,
+            }}
             className="absolute z-20"
             style={positions[i]}
           >
@@ -49,7 +54,10 @@ function FloatingStats() {
               <p className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase mb-0.5">
                 {stat.label}
               </p>
-              <p className="text-lg font-black tabular-nums" style={{ color: `oklch(0.55 0.15 ${stat.hue})` }}>
+              <p
+                className="text-lg font-black tabular-nums"
+                style={{ color: `oklch(0.55 0.15 ${stat.hue})` }}
+              >
                 {stat.amount} ₸
               </p>
             </div>
@@ -67,7 +75,10 @@ function HeroPhone() {
 
   useEffect(() => {
     if (cardStep >= 3) return;
-    const t = setTimeout(() => setCardStep((s) => s + 1), [700, 1100, 1500][cardStep]);
+    const t = setTimeout(
+      () => setCardStep((s) => s + 1),
+      [700, 1100, 1500][cardStep],
+    );
     return () => clearTimeout(t);
   }, [cardStep]);
 
@@ -77,7 +88,9 @@ function HeroPhone() {
       <div className="absolute inset-0 pt-7 pb-3 px-2.5 flex flex-col gap-2">
         <div className="flex justify-between items-center px-1 text-[8px] text-muted-foreground/60 font-medium">
           <span>9:41</span>
-          <div className="flex gap-0.5"><div className="w-3 h-1.5 rounded-sm bg-muted-foreground/40" /></div>
+          <div className="flex gap-0.5">
+            <div className="w-3 h-1.5 rounded-sm bg-muted-foreground/40" />
+          </div>
         </div>
         <div className="flex items-center justify-between mt-1 mb-1">
           <p className="text-[9px] font-bold">Мне должны</p>
@@ -88,29 +101,65 @@ function HeroPhone() {
         <div className="flex-1 space-y-1.5">
           <AnimatePresence mode="sync">
             {cardStep >= 0 && (
-              <motion.div key="c1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5">
+              <motion.div
+                key="c1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5"
+              >
                 <div className="flex items-center justify-between">
-                  <div><p className="text-[8px] font-semibold text-positive/80">Айбек</p><p className="text-xs font-black text-positive">+5 000 ₸</p></div>
-                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">A</div>
+                  <div>
+                    <p className="text-[8px] font-semibold text-positive/80">
+                      Айбек
+                    </p>
+                    <p className="text-xs font-black text-positive">+5 000 ₸</p>
+                  </div>
+                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">
+                    A
+                  </div>
                 </div>
               </motion.div>
             )}
             {cardStep >= 1 && (
-              <motion.div key="c2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5">
+              <motion.div
+                key="c2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5"
+              >
                 <div className="flex items-center justify-between">
-                  <div><p className="text-[8px] font-semibold text-positive/80">Алина</p><p className="text-xs font-black text-positive">+3 200 ₸</p></div>
-                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">A</div>
+                  <div>
+                    <p className="text-[8px] font-semibold text-positive/80">
+                      Алина
+                    </p>
+                    <p className="text-xs font-black text-positive">+3 200 ₸</p>
+                  </div>
+                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">
+                    A
+                  </div>
                 </div>
               </motion.div>
             )}
             {cardStep >= 2 && (
-              <motion.div key="c3" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-negative/20 to-negative/5 border border-negative/15 rounded-xl p-2.5">
+              <motion.div
+                key="c3"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                className="bg-gradient-to-r from-negative/20 to-negative/5 border border-negative/15 rounded-xl p-2.5"
+              >
                 <div className="flex items-center justify-between">
-                  <div><p className="text-[8px] font-semibold text-negative/80">Ержан</p><p className="text-xs font-black text-negative">-2 000 ₸</p></div>
-                  <div className="w-5 h-5 rounded-full bg-negative/20 flex items-center justify-center text-[7px] font-bold text-negative">E</div>
+                  <div>
+                    <p className="text-[8px] font-semibold text-negative/80">
+                      Ержан
+                    </p>
+                    <p className="text-xs font-black text-negative">-2 000 ₸</p>
+                  </div>
+                  <div className="w-5 h-5 rounded-full bg-negative/20 flex items-center justify-center text-[7px] font-bold text-negative">
+                    E
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -118,7 +167,12 @@ function HeroPhone() {
         </div>
         <div className="flex justify-around py-1.5 border-t border-border/20">
           {["Главная", "Аналитика", "Профиль"].map((tab, i) => (
-            <div key={tab} className={`text-[6px] font-medium ${i === 0 ? "text-positive" : "text-muted-foreground/40"}`}>{tab}</div>
+            <div
+              key={tab}
+              className={`text-[6px] font-medium ${i === 0 ? "text-positive" : "text-muted-foreground/40"}`}
+            >
+              {tab}
+            </div>
           ))}
         </div>
       </div>
@@ -145,7 +199,12 @@ function BenefitsSlide({ onNext }: { onNext: () => void }) {
         <motion.span
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.05, type: "spring", damping: 15, stiffness: 180 }}
+          transition={{
+            delay: 0.05,
+            type: "spring",
+            damping: 15,
+            stiffness: 180,
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/8 border border-primary/10 text-[10px] text-primary font-medium tracking-wider uppercase mb-5"
         >
           <Sparkles className="w-3 h-3" />
@@ -159,8 +218,10 @@ function BenefitsSlide({ onNext }: { onNext: () => void }) {
           className="text-2xl sm:text-3xl font-black tracking-tight"
         >
           Преврати Qaryz
-          <br />
-          в <span className="bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">настоящее приложение</span>
+          <br />в{" "}
+          <span className="bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+            настоящее приложение
+          </span>
         </motion.h2>
       </motion.div>
 
@@ -171,7 +232,12 @@ function BenefitsSlide({ onNext }: { onNext: () => void }) {
             key={b.label}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.25 + i * 0.15, type: "spring", damping: 18, stiffness: 160 }}
+            transition={{
+              delay: 0.25 + i * 0.15,
+              type: "spring",
+              damping: 18,
+              stiffness: 160,
+            }}
             className="flex items-center gap-4 px-5 py-3.5 rounded-2xl bg-card/60 border border-border/20 w-full max-w-[240px]"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -213,12 +279,12 @@ function StepsSlide({ onNext }: { onNext: () => void }) {
   const iOS = [
     { icon: Share2, title: "Share", desc: "Кнопка «Поделиться»" },
     { icon: Plus, title: "Экран «Домой»", desc: "Выбери в меню" },
-    { icon: ExternalLink, title: "Готово!", desc: "Иконка на рабочем столе" },
+    { icon: ExternalLink, title: "Готово", desc: "Кайфуйте!" },
   ];
   const Android = [
     { icon: Share2, title: "Меню", desc: "⋮ в правом углу" },
     { icon: Download, title: "Установить", desc: "Выбери в меню" },
-    { icon: ExternalLink, title: "Готово!", desc: "Иконка на рабочем столе" },
+    { icon: ExternalLink, title: "Готово", desc: "Кайфуйте!" },
   ];
   const steps = platform === "ios" ? iOS : Android;
 
@@ -248,7 +314,7 @@ function StepsSlide({ onNext }: { onNext: () => void }) {
                 "px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all",
                 platform === p
                   ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground/50 hover:text-muted-foreground"
+                  : "text-muted-foreground/50 hover:text-muted-foreground",
               )}
             >
               {p === "ios" ? "iPhone" : "Android"}
@@ -272,7 +338,12 @@ function StepsSlide({ onNext }: { onNext: () => void }) {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.2 + i * 0.15, type: "spring", stiffness: 200, damping: 16 }}
+                transition={{
+                  delay: 0.2 + i * 0.15,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 16,
+                }}
                 className="w-14 h-14 rounded-2xl bg-muted/80 border border-border/20 flex items-center justify-center"
               >
                 <s.icon className="w-6 h-6 text-muted-foreground/60" />
@@ -284,7 +355,9 @@ function StepsSlide({ onNext }: { onNext: () => void }) {
             </div>
             <div>
               <p className="text-xs font-semibold">{s.title}</p>
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">{s.desc}</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">
+                {s.desc}
+              </p>
             </div>
           </motion.div>
         ))}
@@ -428,7 +501,7 @@ function TutorialSection({ onFinish }: { onFinish: () => void }) {
               "rounded-full transition-all duration-300",
               i === slide
                 ? "w-6 h-1.5 bg-primary"
-                : "w-1.5 h-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/40"
+                : "w-1.5 h-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/40",
             )}
           />
         ))}
@@ -485,7 +558,12 @@ function HeroSection({ onNext }: { onNext: () => void }) {
         className="flex flex-wrap items-center justify-center gap-2 mt-3 sm:mt-4"
       >
         {["Работает офлайн", "Меньше 1 МБ", "Бесплатно"].map((tag) => (
-          <span key={tag} className="px-2.5 py-1 rounded-full bg-muted/50 border border-border/30 text-[11px] font-medium text-muted-foreground">{tag}</span>
+          <span
+            key={tag}
+            className="px-2.5 py-1 rounded-full bg-muted/50 border border-border/30 text-[11px] font-medium text-muted-foreground"
+          >
+            {tag}
+          </span>
         ))}
       </motion.div>
 
@@ -566,7 +644,9 @@ export default function LandingPage() {
                   <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                     <span className="text-sm font-black text-primary">Q</span>
                   </div>
-                  <span className="text-sm font-bold text-foreground/40">Qaryz</span>
+                  <span className="text-sm font-bold text-foreground/40">
+                    Qaryz
+                  </span>
                 </div>
               </div>
               <HeroSection onNext={goNext} />
@@ -591,7 +671,9 @@ export default function LandingPage() {
                   Назад
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-foreground/30">Qaryz</span>
+                  <span className="text-[10px] font-bold text-foreground/30">
+                    Qaryz
+                  </span>
                 </div>
               </div>
               <TutorialSection onFinish={goAuth} />
