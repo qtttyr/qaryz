@@ -18,12 +18,14 @@ export default defineConfig({
       manifest: {
         id: "/",
         start_url: "/",
+        scope: "/",
         name: "Qaryz - Учёт долгов",
         short_name: "Qaryz",
         description: "Современное приложение для учёта долгов и совместных расходов",
         theme_color: "#101214",
         background_color: "#101214",
         display: "standalone",
+        orientation: "portrait-primary",
         icons: [
           {
             src: "Q.png",

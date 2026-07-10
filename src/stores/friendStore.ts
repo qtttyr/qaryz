@@ -331,18 +331,33 @@ export const useFriendStore = create<FriendStore>()(
           friends: s.friends.filter((f) => f.id !== friendId),
         }));
 
+        // Determine the other user's ID (whoever is NOT the current user)
+        const otherUserId = friend.userId === user.id ? friend.friendId : friend.userId;
+
         try {
           // Delete the friendship row (either direction)
           await supabase
             .from("friends")
             .delete()
-            .or(`and(user_id.eq.${user.id},friend_id.eq.${friend.friendId}),and(user_id.eq.${friend.friendId},friend_id.eq.${user.id})`);
+            .or(`and(user_id.eq.${user.id},friend_id.eq.${otherUserId}),and(user_id.eq.${otherUserId},friend_id.eq.${user.id})`);
         } catch (e) {
           console.error("Failed to remove friend:", e);
+          // Rollback optimistic removal
           set((s) => ({
             friends: [...s.friends, friend],
           }));
+          return;
         }
+
+        // Also reset the accepted friend request so user can re-send later
+        // RLS only allows receiver to update — try both directions, silently ignore if no match
+        try {
+          await supabase
+            .from("friend_requests")
+            .update({ status: "rejected" })
+            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+            .eq("status", "accepted");
+        } catch { /* best-effort — friend is already removed */ }
       },
 
       getFriend: (userId) => {

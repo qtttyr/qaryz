@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -18,7 +19,7 @@ interface PersonCardProps {
   index?: number;
 }
 
-export default function PersonCard({ person, index = 0 }: PersonCardProps) {
+export default memo(function PersonCard({ person, index = 0 }: PersonCardProps) {
   const navigate = useNavigate();
   const currency = useUserStore((s) => s.profile.currency);
   const isPositive = person.balance > 0;
@@ -101,4 +102,4 @@ export default function PersonCard({ person, index = 0 }: PersonCardProps) {
       </button>
     </motion.div>
   );
-}
+}, (prev, next) => prev.person.id === next.person.id && prev.index === next.index);

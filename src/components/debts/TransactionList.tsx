@@ -25,12 +25,10 @@ interface TimelineEntry {
 }
 
 export default function TransactionList({ personId }: TransactionListProps) {
-  const debts = useDebtStore((s) => s.debts);
+  const personDebts = useDebtStore((s) => s.debts.filter((d) => d.personId === personId));
   const payments = useDebtStore((s) => s.payments);
   const currency = useUserStore((s) => s.profile.currency);
   const openModal = useUIStore((s) => s.openModal);
-
-  const personDebts = debts.filter((d) => d.personId === personId);
 
   // Build timeline entries
   const entries: TimelineEntry[] = [];
