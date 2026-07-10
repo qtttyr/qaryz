@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Smartphone, Play } from "lucide-react";
 import Particles from "@/components/shared/Particles";
 
-// ─── Floating stat cards ───────────────────────────────────
+// ─── Floating stats (desktop) ──────────────────────────────
 
 const STATS = [
   { label: "Тебе должны", amount: "124 500", hue: "150" },
@@ -19,9 +19,9 @@ function FloatingStats() {
     <div className="absolute inset-0 pointer-events-none hidden md:block">
       {STATS.map((stat, i) => {
         const positions = [
-          { top: "12%", right: "2%" },
-          { bottom: "18%", left: "2%" },
-          { top: "42%", left: "-2%" },
+          { top: "10%", right: "-5%" },
+          { bottom: "18%", left: "-5%" },
+          { top: "44%", left: "-8%" },
         ];
         return (
           <motion.div
@@ -70,22 +70,28 @@ function HeroPhone() {
   }, [cardStep]);
 
   return (
-    <div className="relative mx-auto w-[180px] h-[380px] sm:w-[220px] sm:h-[450px] rounded-[2.5rem] border-4 border-white/10 bg-gradient-to-b from-background to-muted/80 shadow-2xl shadow-black/30 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5 bg-white/10 rounded-b-2xl z-10" />
-      <div className="absolute inset-0 pt-7 pb-3 px-2.5 flex flex-col gap-2">
-        <div className="flex justify-between items-center px-1 text-[8px] text-muted-foreground/60 font-medium">
+    <div className="relative mx-auto w-[150px] h-[310px] sm:w-[190px] sm:h-[400px] md:w-[220px] md:h-[460px] lg:w-[240px] lg:h-[500px] rounded-[2rem] md:rounded-[2.5rem] border-4 border-white/10 bg-gradient-to-b from-background to-muted/80 shadow-2xl shadow-black/30 overflow-hidden">
+      {/* Notch */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-4 md:h-5 bg-white/10 rounded-b-2xl z-10" />
+
+      {/* Screen */}
+      <div className="absolute inset-0 pt-5 md:pt-7 pb-2 md:pb-3 px-2 md:px-2.5 flex flex-col gap-1 md:gap-2">
+        {/* Status bar */}
+        <div className="flex justify-between items-center px-1 text-[7px] md:text-[8px] text-muted-foreground/60 font-medium">
           <span>9:41</span>
-          <div className="flex gap-0.5">
-            <div className="w-3 h-1.5 rounded-sm bg-muted-foreground/40" />
+          <div className="w-2.5 md:w-3 h-1 md:h-1.5 rounded-sm bg-muted-foreground/40" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between mt-0.5 mb-0.5">
+          <p className="text-[7px] md:text-[9px] font-bold">Мне должны</p>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-md bg-primary/10 flex items-center justify-center">
+            <Smartphone className="w-2 h-2 md:w-2.5 md:h-2.5 text-primary" />
           </div>
         </div>
-        <div className="flex items-center justify-between mt-1 mb-1">
-          <p className="text-[9px] font-bold">Мне должны</p>
-          <div className="w-4 h-4 rounded-md bg-primary/10 flex items-center justify-center">
-            <Smartphone className="w-2.5 h-2.5 text-primary" />
-          </div>
-        </div>
-        <div className="flex-1 space-y-1.5">
+
+        {/* Cards */}
+        <div className="flex-1 space-y-1 md:space-y-1.5">
           <AnimatePresence mode="sync">
             {cardStep >= 0 && (
               <motion.div
@@ -93,14 +99,14 @@ function HeroPhone() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5"
+                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-lg md:rounded-xl p-1.5 md:p-2.5"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] font-semibold text-positive/80">Айбек</p>
-                    <p className="text-xs font-black text-positive">+5 000 ₸</p>
+                    <p className="text-[6px] md:text-[8px] font-semibold text-positive/80">Айбек</p>
+                    <p className="text-[9px] md:text-xs font-black text-positive">+5 000 ₸</p>
                   </div>
-                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">A</div>
+                  <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-positive/20 flex items-center justify-center text-[5px] md:text-[7px] font-bold text-positive">A</div>
                 </div>
               </motion.div>
             )}
@@ -110,14 +116,14 @@ function HeroPhone() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-xl p-2.5"
+                className="bg-gradient-to-r from-positive/20 to-positive/5 border border-positive/15 rounded-lg md:rounded-xl p-1.5 md:p-2.5"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] font-semibold text-positive/80">Алина</p>
-                    <p className="text-xs font-black text-positive">+3 200 ₸</p>
+                    <p className="text-[6px] md:text-[8px] font-semibold text-positive/80">Алина</p>
+                    <p className="text-[9px] md:text-xs font-black text-positive">+3 200 ₸</p>
                   </div>
-                  <div className="w-5 h-5 rounded-full bg-positive/20 flex items-center justify-center text-[7px] font-bold text-positive">A</div>
+                  <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-positive/20 flex items-center justify-center text-[5px] md:text-[7px] font-bold text-positive">A</div>
                 </div>
               </motion.div>
             )}
@@ -127,22 +133,29 @@ function HeroPhone() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                className="bg-gradient-to-r from-negative/20 to-negative/5 border border-negative/15 rounded-xl p-2.5"
+                className="bg-gradient-to-r from-negative/20 to-negative/5 border border-negative/15 rounded-lg md:rounded-xl p-1.5 md:p-2.5"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] font-semibold text-negative/80">Ержан</p>
-                    <p className="text-xs font-black text-negative">-2 000 ₸</p>
+                    <p className="text-[6px] md:text-[8px] font-semibold text-negative/80">Ержан</p>
+                    <p className="text-[9px] md:text-xs font-black text-negative">-2 000 ₸</p>
                   </div>
-                  <div className="w-5 h-5 rounded-full bg-negative/20 flex items-center justify-center text-[7px] font-bold text-negative">E</div>
+                  <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-negative/20 flex items-center justify-center text-[5px] md:text-[7px] font-bold text-negative">E</div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        <div className="flex justify-around py-1.5 border-t border-border/20">
+
+        {/* Bottom nav */}
+        <div className="flex justify-around py-1 md:py-1.5 border-t border-border/20">
           {["Главная", "Аналитика", "Профиль"].map((tab, i) => (
-            <div key={tab} className={`text-[6px] font-medium ${i === 0 ? "text-positive" : "text-muted-foreground/40"}`}>
+            <div
+              key={tab}
+              className={`text-[5px] md:text-[6px] font-medium ${
+                i === 0 ? "text-positive" : "text-muted-foreground/40"
+              }`}
+            >
               {tab}
             </div>
           ))}
@@ -156,7 +169,8 @@ function HeroPhone() {
 
 function HeroSection({ onNext }: { onNext: () => void }) {
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-6 py-4 sm:py-6">
+    <div className="flex flex-col items-center justify-center px-6 py-4 sm:py-6">
+      {/* Badge */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -167,16 +181,18 @@ function HeroSection({ onNext }: { onNext: () => void }) {
         Не требует App Store
       </motion.div>
 
-      <div className="relative mb-3 sm:mb-4">
+      {/* Phone area */}
+      <div className="relative mb-2 sm:mb-4">
         <HeroPhone />
         <FloatingStats />
       </div>
 
+      {/* Title */}
       <motion.h1
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-        className="text-[26px] sm:text-4xl font-black tracking-tight leading-[1.15] text-center max-w-md"
+        className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-[1.15] text-center max-w-md"
       >
         Не теряй деньги{" "}
         <span className="bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
@@ -184,6 +200,7 @@ function HeroSection({ onNext }: { onNext: () => void }) {
         </span>
       </motion.h1>
 
+      {/* Subtitle */}
       <motion.p
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -193,6 +210,7 @@ function HeroSection({ onNext }: { onNext: () => void }) {
         5 секунд на запись. Никаких таблиц.
       </motion.p>
 
+      {/* Tags */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -200,12 +218,16 @@ function HeroSection({ onNext }: { onNext: () => void }) {
         className="flex flex-wrap items-center justify-center gap-2 mt-3 sm:mt-4"
       >
         {["Работает офлайн", "Меньше 1 МБ", "Бесплатно"].map((tag) => (
-          <span key={tag} className="px-2.5 py-1 rounded-full bg-muted/50 border border-border/30 text-[11px] font-medium text-muted-foreground">
+          <span
+            key={tag}
+            className="px-2.5 py-1 rounded-full bg-muted/50 border border-border/30 text-[11px] font-medium text-muted-foreground"
+          >
             {tag}
           </span>
         ))}
       </motion.div>
 
+      {/* CTA */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -247,29 +269,40 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else { v.pause(); setPlaying(false); }
+    if (v.paused) {
+      v.play();
+      setPlaying(true);
+    } else {
+      v.pause();
+      setPlaying(false);
+    }
   };
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-6 py-8">
+    <div className="flex flex-col items-center justify-center px-6 py-4 sm:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="flex flex-col items-center text-center"
       >
-        {/* Label */}
+        {/* Badge */}
         <motion.span
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.05, type: "spring", damping: 18, stiffness: 180 }}
+          transition={{
+            delay: 0.05,
+            type: "spring",
+            damping: 18,
+            stiffness: 180,
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/8 border border-primary/10 text-[10px] text-primary font-medium tracking-wider uppercase mb-4"
         >
           <Smartphone className="w-3 h-3" />
           Как установить
         </motion.span>
 
+        {/* Title */}
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -279,6 +312,7 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
           На экран за 10 секунд
         </motion.h2>
 
+        {/* Subtitle */}
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -298,7 +332,10 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
           {(["ios", "android"] as const).map((p) => (
             <button
               key={p}
-              onClick={() => { setPlatform(p); setPlaying(false); }}
+              onClick={() => {
+                setPlatform(p);
+                setPlaying(false);
+              }}
               className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
                 platform === p
                   ? "bg-card text-foreground shadow-sm border border-border/50"
@@ -311,12 +348,12 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
           ))}
         </motion.div>
 
-        {/* Video player */}
+        {/* Video */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.25, duration: 0.4 }}
-          className="relative w-full max-w-[260px] rounded-2xl overflow-hidden bg-muted/40 border border-border/20 shadow-lg shadow-black/5"
+          className="relative w-full max-w-[200px] sm:max-w-[240px] md:max-w-[260px] rounded-2xl overflow-hidden bg-muted/40 border border-border/20 shadow-lg shadow-black/5"
         >
           <video
             ref={videoRef}
@@ -339,9 +376,9 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
               <motion.div
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
-                className="w-16 h-16 rounded-full bg-white/90 shadow-xl flex items-center justify-center group/btn"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/90 shadow-xl flex items-center justify-center group/btn"
               >
-                <Play className="w-7 h-7 text-foreground ml-0.5 fill-foreground transition-transform group-hover/btn:scale-110" />
+                <Play className="w-6 h-6 sm:w-7 sm:h-7 text-foreground ml-0.5 fill-foreground transition-transform group-hover/btn:scale-110" />
               </motion.div>
             </button>
           )}
@@ -402,7 +439,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-dvh bg-background relative overflow-hidden">
-      {/* Animated background */}
+      {/* Animated gradient bg */}
       <motion.div
         className="fixed inset-0 -z-10"
         animate={{
@@ -417,55 +454,63 @@ export default function LandingPage() {
       />
 
       <Particles count={10} />
+
+      {/* Decorative blurs */}
       <div className="fixed -top-40 -right-40 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
       <div className="fixed -bottom-40 -left-40 w-[400px] h-[400px] bg-primary/3 rounded-full blur-[120px]" />
 
       {/* Slides */}
-      <AnimatePresence mode="wait">
-        {slide === "hero" && (
-          <motion.div
-            key="hero"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-            className="absolute inset-0 flex flex-col"
-          >
-            <div className="px-6 pt-4 sm:pt-5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-black text-primary">Q</span>
+      <div className="relative z-10 min-h-dvh">
+        <AnimatePresence mode="wait">
+          {slide === "hero" && (
+            <motion.div
+              key="hero"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="min-h-dvh flex flex-col"
+            >
+              <div className="shrink-0 px-6 pt-4 sm:pt-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-black text-primary">Q</span>
+                  </div>
+                  <span className="text-sm font-bold text-foreground/40">Qaryz</span>
                 </div>
-                <span className="text-sm font-bold text-foreground/40">Qaryz</span>
               </div>
-            </div>
-            <HeroSection onNext={() => setSlide("video")} />
-          </motion.div>
-        )}
+              <div className="flex-1 flex items-center justify-center">
+                <HeroSection onNext={() => setSlide("video")} />
+              </div>
+            </motion.div>
+          )}
 
-        {slide === "video" && (
-          <motion.div
-            key="video"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-            className="absolute inset-0 flex flex-col"
-          >
-            <div className="px-6 pt-4 sm:pt-5 flex items-center justify-between">
-              <button
-                onClick={() => setSlide("hero")}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-              >
-                <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-                Назад
-              </button>
-              <span className="text-[10px] font-bold text-foreground/30">Qaryz</span>
-            </div>
-            <VideoSlide onFinish={() => navigate("/auth")} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {slide === "video" && (
+            <motion.div
+              key="video"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="min-h-dvh flex flex-col"
+            >
+              <div className="shrink-0 px-6 pt-4 sm:pt-5 flex items-center justify-between">
+                <button
+                  onClick={() => setSlide("hero")}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                  Назад
+                </button>
+                <span className="text-[10px] font-bold text-foreground/30">Qaryz</span>
+              </div>
+              <div className="flex-1 flex items-center justify-center">
+                <VideoSlide onFinish={() => navigate("/auth")} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
