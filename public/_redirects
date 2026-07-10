@@ -1,0 +1,3 @@
+# Qaryz — SPA Routing
+# Все пути отдаём index.html, react-router разберётся сам
+/* /index.html 200

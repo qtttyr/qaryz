@@ -112,7 +112,7 @@ export const FriendCard = memo(
 
         {/* Nudge + Chevron */}
         <div className="flex items-center gap-1 shrink-0">
-          <NudgeButton personId={friend.id} personName={friend.name} />
+          <NudgeButton personId={friend.userId} personName={friend.name} />
           <svg
             className="w-4 h-4 text-muted-foreground/40 shrink-0"
             fill="none"

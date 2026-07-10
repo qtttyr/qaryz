@@ -53,7 +53,9 @@ export default function NudgeButton({ personId, personName, variant = "icon" }: 
       if (user) {
         supabase.functions.invoke("nudge", {
           body: { targetUserId: personId },
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error("nudge function call failed:", err);
+        });
       }
 
       // Animation timeline
