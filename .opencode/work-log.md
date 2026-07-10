@@ -1,6 +1,8 @@
 # Work Log
 
 ## Active Sessions
+- [x] ses_layout_lazy (Worker): `src/components/layout/AppLayout.tsx` — added Suspense + PageLoader for lazy loading support | done
+
 - [x] ses_sw (Reviewer): `src/sw.ts`, `tsconfig.app.json` — created sw.ts + excluded from tsconfig | verified PASS
 - [x] ses_migration (Reviewer): `supabase/migrations/007_push_subscriptions.sql` — push_subscriptions + notifications tables | verified PASS
 - [x] ses_sendpush (Reviewer): `supabase/functions/send-push/index.ts` + `deno.json` | verified PASS
