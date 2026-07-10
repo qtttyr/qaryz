@@ -5,7 +5,8 @@ import OnboardingGate from "@/components/layout/OnboardingGate";
 import AppLayout from "@/components/layout/AppLayout";
 import PageLoader from "@/components/shared/PageLoader";
 
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
+import LandingPage from "@/pages/LandingPage";
+
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const OnboardingPage = lazy(() => import("@/pages/OnboardingPage"));
 const OwedToMePage = lazy(() => import("@/pages/OwedToMePage"));
@@ -23,11 +24,7 @@ const FriendProfilePage = lazy(() => import("@/pages/FriendProfilePage"));
 export const router = createBrowserRouter([
   {
     path: "/welcome",
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <LandingPage />
-      </Suspense>
-    ),
+    element: <LandingPage />,
   },
   {
     path: "/auth",
