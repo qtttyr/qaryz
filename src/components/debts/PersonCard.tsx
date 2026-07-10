@@ -94,11 +94,13 @@ export default memo(function PersonCard({ person, index = 0 }: PersonCardProps) 
         </div>
 
         {/* Arrow */}
-        <HugeiconsIcon
-          icon={ArrowRight01Icon}
-          size={18}
-          className="text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all duration-200 shrink-0"
-        />
+        <div className="flex items-center gap-1 shrink-0">
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            size={18}
+            className="text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all duration-200 shrink-0"
+          />
+        </div>
       </button>
     </motion.div>
   );

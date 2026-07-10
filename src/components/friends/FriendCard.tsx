@@ -2,6 +2,7 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getInitials, getAvatarColor } from "@/lib/formatters";
+import NudgeButton from "@/components/debts/NudgeButton";
 import type { FriendWithBalance } from "@/hooks/useFriendsWithBalances";
 
 interface FriendCardProps {
@@ -109,16 +110,19 @@ export const FriendCard = memo(
           </div>
         </div>
 
-        {/* Chevron */}
-        <svg
-          className="w-4 h-4 text-muted-foreground/40 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        {/* Nudge + Chevron */}
+        <div className="flex items-center gap-1 shrink-0">
+          <NudgeButton personId={friend.id} personName={friend.name} />
+          <svg
+            className="w-4 h-4 text-muted-foreground/40 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
       </motion.button>
     );
   },

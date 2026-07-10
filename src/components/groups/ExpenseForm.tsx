@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
 import { useGroupStore } from "@/stores/groupStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -33,7 +34,9 @@ const CATEGORIES = [
 
 export function ExpenseForm({ groupId, onClose }: ExpenseFormProps) {
   const user = useAuthStore((s) => s.user);
-  const members = useGroupStore((s) => s.members.filter((m) => m.groupId === groupId));
+  const members = useGroupStore(
+    useShallow((s) => s.members.filter((m) => m.groupId === groupId))
+  );
   const addExpense = useGroupStore((s) => s.addExpense);
 
   const [description, setDescription] = useState("");

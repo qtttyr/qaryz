@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import TransactionList from "@/components/debts/TransactionList";
 import ReminderButton from "@/components/debts/ReminderButton";
+
 import { formatCurrency, getInitials, getAvatarColor } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -93,7 +94,7 @@ export default function PersonDetailPage() {
           {formatCurrency(balance, currency)}
         </h2>
         
-        <div className="flex items-center justify-center gap-3 mt-6">
+        <div className="flex items-center justify-center gap-2 mt-6">
           <ReminderButton personId={person.id} />
           <Button 
             onClick={() => openModal("add-debt", { personId: person.id })}

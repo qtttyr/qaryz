@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import NudgeButton from "@/components/debts/NudgeButton";
 
 // ── Mini stat bar ──
 function MiniStat({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
@@ -295,13 +296,11 @@ export default function FriendProfilePage() {
 
         {/* ── Actions ── */}
         <div className="px-4 mb-4 flex gap-2">
-          <Button className="flex-1 gap-1.5" onClick={() => navigate(`/person/${id}`)}>
-            <Plus className="w-4 h-4" /> Добавить долг
-          </Button>
+          <NudgeButton personId={id!} personName={profile.name} variant="button" />
           {isFriend && (
             <Button
               variant="outline"
-              className="gap-1.5"
+              className="gap-1.5 h-12 px-4 rounded-xl shrink-0"
               onClick={async () => {
                 if (confirm(`Удалить ${profile.name} из друзей?`)) {
                   await removeFriend(friend!.id);
@@ -309,7 +308,7 @@ export default function FriendProfilePage() {
                 }
               }}
             >
-              <Send className="w-4 h-4" /> Удалить
+              <Send className="w-4 h-4" />
             </Button>
           )}
         </div>

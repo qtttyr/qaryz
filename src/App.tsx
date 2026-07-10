@@ -5,6 +5,7 @@ import { useUIStore } from "./stores/uiStore";
 import { useAuthStore } from "./stores/authStore";
 import { useDebtStore } from "./stores/debtStore";
 import { ToastContainer } from "@/components/shared/Toast";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useSWUpdate } from "@/hooks/useSWUpdate";
 import UpdateBanner from "@/components/notifications/UpdateBanner";
 
@@ -46,7 +47,9 @@ function App() {
 
   return (
     <>
-      <RouterProvider router={router} />
+      <ErrorBoundary>
+        <RouterProvider router={router} />
+      </ErrorBoundary>
       <ToastContainer />
       <UpdateBanner
         visible={needsRefresh}
