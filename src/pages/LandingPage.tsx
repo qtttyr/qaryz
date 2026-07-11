@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -249,34 +249,14 @@ function HeroSection({ onNext }: { onNext: () => void }) {
 }
 
 // ─── Slide 2: Video Tutorial ───────────────────────────────
-// Замени URL ниже на свои видео после съёмки.
-// Положи файлы в public/videos/ или залей на YouTube/Vimeo.
+// YouTube Shorts — установка на экран
 
-const VIDEOS = {
-  ios: "/videos/install-ios.mp4",
-  android: "/videos/install-android.mp4",
-};
+const VIDEO_ID = "d8rGG0uDbdc";
+const THUMB_URL = `https://img.youtube.com/vi/${VIDEO_ID}/hqdefault.jpg`;
+const EMBED_URL = `https://www.youtube.com/embed/${VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
 
 function VideoSlide({ onFinish }: { onFinish: () => void }) {
-  const [platform, setPlatform] = useState<"ios" | "android">("ios");
-  const [playing, setPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (/android/i.test(navigator.userAgent)) setPlatform("android");
-  }, []);
-
-  const togglePlay = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) {
-      v.play();
-      setPlaying(true);
-    } else {
-      v.pause();
-      setPlaying(false);
-    }
-  };
+  const [watching, setWatching] = useState(false);
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-4 sm:py-6">
@@ -322,65 +302,44 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
           Короткое видео — просто повтори
         </motion.p>
 
-        {/* Platform toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-          className="flex items-center gap-1.5 mb-5 bg-muted/50 p-1 rounded-xl"
-        >
-          {(["ios", "android"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => {
-                setPlatform(p);
-                setPlaying(false);
-              }}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                platform === p
-                  ? "bg-card text-foreground shadow-sm border border-border/50"
-                  : "text-muted-foreground/50 hover:text-muted-foreground"
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              {p === "ios" ? "iPhone" : "Android"}
-            </button>
-          ))}
-        </motion.div>
-
-        {/* Video */}
+        {/* Video — превью сразу, плеер только по нажатию */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.25, duration: 0.4 }}
-          className="relative w-full max-w-[200px] sm:max-w-[240px] md:max-w-[260px] rounded-2xl overflow-hidden bg-muted/40 border border-border/20 shadow-lg shadow-black/5"
+          transition={{ delay: 0.2, duration: 0.4 }}
+          className="relative w-full max-w-[200px] sm:max-w-[240px] md:max-w-[260px]"
         >
-          <video
-            ref={videoRef}
-            key={platform}
-            src={VIDEOS[platform]}
-            preload="metadata"
-            playsInline
-            controls={playing}
-            className="w-full aspect-[9/19] object-cover bg-black/5"
-            onEnded={() => setPlaying(false)}
-            onPause={() => setPlaying(false)}
-            onPlay={() => setPlaying(true)}
-          />
-
-          {!playing && (
+          {!watching ? (
             <button
-              onClick={togglePlay}
-              className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[2px] transition-opacity hover:bg-black/15"
+              onClick={() => setWatching(true)}
+              className="relative w-full block rounded-2xl overflow-hidden bg-muted/40 border border-border/20 shadow-lg shadow-black/5 group"
             >
-              <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/90 shadow-xl flex items-center justify-center group/btn"
-              >
-                <Play className="w-6 h-6 sm:w-7 sm:h-7 text-foreground ml-0.5 fill-foreground transition-transform group-hover/btn:scale-110" />
-              </motion.div>
+              <img
+                src={THUMB_URL}
+                alt="Превью видео"
+                className="w-full aspect-[9/16] object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] transition-all group-hover:bg-black/15">
+                <motion.div
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/90 shadow-xl flex items-center justify-center"
+                >
+                  <Play className="w-6 h-6 sm:w-7 sm:h-7 text-foreground ml-0.5 fill-foreground transition-transform group-hover:scale-110" />
+                </motion.div>
+              </div>
             </button>
+          ) : (
+            <div className="rounded-2xl overflow-hidden bg-black border border-border/20 shadow-lg shadow-black/5">
+              <iframe
+                src={EMBED_URL}
+                className="w-full aspect-[9/16]"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                title="Как установить Qaryz на экран"
+              />
+            </div>
           )}
         </motion.div>
 
@@ -390,7 +349,7 @@ function VideoSlide({ onFinish }: { onFinish: () => void }) {
           transition={{ delay: 0.35, duration: 0.4 }}
           className="text-[11px] text-muted-foreground/40 mt-3 mb-6"
         >
-          Видео загружается только по нажатию
+          {watching ? "Видео с YouTube · без рекламы" : "Нажми, чтобы посмотреть"}
         </motion.p>
 
         {/* CTA */}
