@@ -1,15 +1,23 @@
+import { useState } from "react";
 import { useFriendStore } from "@/stores/friendStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getInitials, getAvatarColor } from "@/lib/formatters";
-import { Check, X } from "lucide-react";
+import { Check, X, Loader2 } from "lucide-react";
 
 export function FriendRequests() {
+  const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const incoming = useFriendStore((s) => s.incomingRequests);
   const outgoing = useFriendStore((s) => s.outgoingRequests);
   const acceptRequest = useFriendStore((s) => s.acceptRequest);
   const rejectRequest = useFriendStore((s) => s.rejectRequest);
   const cancelRequest = useFriendStore((s) => s.cancelRequest);
+
+  const withGuard = (reqId: string, fn: () => void) => {
+    if (processing[reqId]) return;
+    setProcessing((prev) => ({ ...prev, [reqId]: true }));
+    try { fn(); } finally { setProcessing((prev) => ({ ...prev, [reqId]: false })); }
+  };
 
   if (incoming.length === 0 && outgoing.length === 0) return null;
 
@@ -48,15 +56,17 @@ export function FriendRequests() {
                     size="sm"
                     variant="default"
                     className="h-8 w-8 p-0"
-                    onClick={() => acceptRequest(req.id)}
+                    disabled={processing[req.id]}
+                    onClick={() => withGuard(req.id, () => acceptRequest(req.id))}
                   >
-                    <Check className="w-4 h-4" />
+                    {processing[req.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-8 w-8 p-0"
-                    onClick={() => rejectRequest(req.id)}
+                    disabled={processing[req.id]}
+                    onClick={() => withGuard(req.id, () => rejectRequest(req.id))}
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -99,9 +109,10 @@ export function FriendRequests() {
                   size="sm"
                   variant="ghost"
                   className="h-8 text-xs text-muted-foreground shrink-0"
-                  onClick={() => cancelRequest(req.id)}
+                  disabled={processing[req.id]}
+                  onClick={() => withGuard(req.id, () => cancelRequest(req.id))}
                 >
-                  Отменить
+                  {processing[req.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : "Отменить"}
                 </Button>
               </div>
             ))}

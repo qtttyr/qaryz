@@ -86,7 +86,7 @@ export default function ProfilePage() {
   };
 
   const saveProfile = async () => {
-    if (!user?.id) return;
+    if (saving || !user?.id) return;
     setSaving(true);
     setSaveSuccess(false);
 

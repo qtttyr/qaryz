@@ -42,6 +42,7 @@ export default function DebtForm({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<"friend" | "manual">("friend");
+  const [submitting, setSubmitting] = useState(false);
 
   const people = useDebtStore((s) => s.people);
   const addDebt = useDebtStore((s) => s.addDebt);
@@ -95,10 +96,12 @@ export default function DebtForm({
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) return;
 
     let personId = selectedPersonId;
+    setSubmitting(true);
 
     try {
       // If friend mode and a friend is selected → use shared debt
@@ -123,6 +126,7 @@ export default function DebtForm({
     } catch (e) {
       // If shared debt fails (e.g. RLS, table missing), show error and keep form open
       console.error("Failed to save debt:", e);
+      setSubmitting(false);
       return;
     }
 
@@ -133,6 +137,7 @@ export default function DebtForm({
     setAmount("");
     setDescription("");
     setMode("friend");
+    setSubmitting(false);
     onClose();
   };
 
@@ -397,15 +402,16 @@ export default function DebtForm({
         {/* Submit */}
         <Button
           onClick={handleSubmit}
-          disabled={!isValid}
+          disabled={!isValid || submitting}
           className={cn(
             "w-full h-12 rounded-xl text-base font-semibold transition-all duration-200",
+            submitting && "opacity-70",
             direction === "owed_to_me"
               ? "bg-positive hover:bg-positive/90 text-white"
               : "bg-negative hover:bg-negative/90 text-white"
           )}
         >
-          {direction === "owed_to_me" ? "Записать долг" : "Записать мой долг"}
+          {submitting ? "Сохранение..." : direction === "owed_to_me" ? "Записать долг" : "Записать мой долг"}
         </Button>
       </SheetContent>
     </Sheet>

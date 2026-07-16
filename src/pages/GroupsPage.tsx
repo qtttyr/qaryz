@@ -44,7 +44,7 @@ export default function GroupsPage() {
     });
 
   const handleCreate = async () => {
-    if (!createName.trim()) return;
+    if (creating || !createName.trim()) return;
     setCreating(true);
     try {
       await createGroup(createName.trim(), createEmoji);

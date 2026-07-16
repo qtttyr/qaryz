@@ -12,6 +12,7 @@ export function UserSearch() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [sending, setSending] = useState<Record<string, boolean>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
   const searchUsers = useFriendStore((s) => s.searchUsers);
@@ -35,8 +36,10 @@ export function UserSearch() {
   }, [query, searchUsers]);
 
   const handleSendRequest = async (userId: string, name: string) => {
+    if (sending[userId]) return;
     setError("");
     setSuccess("");
+    setSending((prev) => ({ ...prev, [userId]: true }));
     const result = await sendRequest(userId);
     if (result.error) {
       setError(result.error);
@@ -44,6 +47,7 @@ export function UserSearch() {
       setSuccess(`Заявка отправлена ${name}`);
       setTimeout(() => setSuccess(""), 3000);
     }
+    setSending((prev) => ({ ...prev, [userId]: false }));
   };
 
   return (

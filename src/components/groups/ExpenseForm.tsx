@@ -59,6 +59,7 @@ export function ExpenseForm({ groupId, onClose }: ExpenseFormProps) {
     : 0;
 
   const handleSubmit = async () => {
+    if (submitting) return;
     if (!description.trim() || !totalAmount || !paidBy) return;
 
     const shares = memberProfiles.map((m) => ({

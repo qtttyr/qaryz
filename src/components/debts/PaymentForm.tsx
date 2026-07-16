@@ -21,6 +21,7 @@ interface PaymentFormProps {
 export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const addPayment = useDebtStore((s) => s.addPayment);
   const getRemainingAmount = useDebtStore((s) => s.getRemainingAmount);
@@ -42,22 +43,26 @@ export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps)
   };
 
   const handleSubmit = () => {
-    if (!debtId) return;
+    if (submitting || !debtId) return;
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) return;
 
+    setSubmitting(true);
     addPayment(debtId, numAmount, note.trim() || undefined);
 
     setAmount("");
     setNote("");
+    setSubmitting(false);
     onClose();
   };
 
   const handlePayFull = () => {
-    if (!debtId || remaining <= 0) return;
+    if (submitting || !debtId || remaining <= 0) return;
+    setSubmitting(true);
     addPayment(debtId, remaining, "Полное погашение");
     setAmount("");
     setNote("");
+    setSubmitting(false);
     onClose();
   };
 
@@ -113,9 +118,10 @@ export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps)
               <Button
                 variant="outline"
                 onClick={handlePayFull}
+                disabled={submitting}
                 className="w-full h-11 rounded-xl mb-4 border-positive/30 text-positive hover:bg-positive/10 font-medium"
               >
-                Погасить полностью — {formatCurrency(remaining, currency)}
+                {submitting ? "Обработка..." : `Погасить полностью — ${formatCurrency(remaining, currency)}`}
               </Button>
             )}
 
@@ -158,10 +164,10 @@ export default function PaymentForm({ open, onClose, debtId }: PaymentFormProps)
             {/* Submit */}
             <Button
               onClick={handleSubmit}
-              disabled={!amount || parseFloat(amount) <= 0}
+              disabled={!amount || parseFloat(amount) <= 0 || submitting}
               className="w-full h-12 rounded-xl text-base font-semibold bg-positive hover:bg-positive/90 text-white"
             >
-              Внести оплату
+              {submitting ? "Обработка..." : "Внести оплату"}
             </Button>
           </>
         )}

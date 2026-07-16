@@ -37,6 +37,7 @@ export default function AddFriendPage() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [successMap, setSuccessMap] = useState<Record<string, boolean>>({});
+  const [sendingMap, setSendingMap] = useState<Record<string, boolean>>({});
 
   const [profileMode, setProfileMode] = useState<ProfileMode | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +137,9 @@ export default function AddFriendPage() {
   }, [query, searchUsers, targetUserId]);
 
   const handleSendRequest = async (userId: string) => {
+    if (sendingMap[userId]) return;
     setError("");
+    setSendingMap((prev) => ({ ...prev, [userId]: true }));
     const result = await sendRequest(userId);
     if (result.error) {
       setError(result.error);
@@ -154,6 +157,7 @@ export default function AddFriendPage() {
         });
       }, 3000);
     }
+    setSendingMap((prev) => ({ ...prev, [userId]: false }));
   };
 
   const goBack = () => {
