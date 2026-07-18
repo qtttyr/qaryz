@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useUserStore } from "./userStore";
 import { useFriendStore } from "./friendStore";
 import { useDebtStore } from "./debtStore";
+import { useGroupStore } from "./groupStore";
 import type { UserProfile } from "@/types/user";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -35,9 +36,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ user: session.user, session, state: "authenticated" });
         const store = useAuthStore.getState();
         await store.syncProfile();
-        // Sync friends + debts after profile
+        // Sync friends + debts + groups after profile
         useFriendStore.getState().syncFromSupabase();
         useDebtStore.getState().syncFromSupabase();
+        useGroupStore.getState().syncFromSupabase();
       } else {
         set({ user: null, session: null, state: "unauthenticated" });
       }
@@ -49,6 +51,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           await store.syncProfile();
           useFriendStore.getState().syncFromSupabase();
           useDebtStore.getState().syncFromSupabase();
+          useGroupStore.getState().syncFromSupabase();
         } else {
           set({ user: null, session: null, state: "unauthenticated" });
         }
@@ -185,6 +188,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     await useAuthStore.getState().syncProfile();
     useFriendStore.getState().syncFromSupabase();
     useDebtStore.getState().syncFromSupabase();
+    useGroupStore.getState().syncFromSupabase();
     return {};
   },
 
