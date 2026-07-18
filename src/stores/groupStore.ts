@@ -16,7 +16,7 @@ interface GroupStore {
   shares: ExpenseShare[];
   syncStatus: "idle" | "syncing" | "synced" | "error";
 
-  createGroup(name: string, emoji?: string, description?: string, photo?: string): Promise<string>;
+  createGroup(name: string, emoji?: string, description?: string, photo?: string, invitedFriendIds?: string[]): Promise<string>;
   deleteGroup(groupId: string): Promise<void>;
 
   joinByInvite(inviteCode: string): Promise<{ error?: string }>;
