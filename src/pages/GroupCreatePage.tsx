@@ -51,24 +51,7 @@ export default function GroupCreatePage() {
     if (creating || !name.trim()) return;
     setCreating(true);
     try {
-      const groupId = await createGroup(name.trim(), "👥", undefined, photo);
-      // Add selected members as group members
-      // Find friend data from the full (unfiltered) friend list
-      const allFriends = friends.map((f) => {
-        const otherId = f.userId === user!.id ? f.friendId : f.userId;
-        return { id: otherId, name: f.name, avatar: f.avatar };
-      });
-      const groupStore = useGroupStore.getState();
-      for (const friendId of selected) {
-        const friend = allFriends.find((f) => f.id === friendId);
-        groupStore.addMemberLocally(
-          groupId,
-          friendId,
-          crypto.randomUUID(),
-          friend?.name || "Пользователь",
-          friend?.avatar
-        );
-      }
+      const groupId = await createGroup(name.trim(), "👥", undefined, photo, selected);
       navigate(`/groups/${groupId}`);
     } catch (e) {
       console.error(e);

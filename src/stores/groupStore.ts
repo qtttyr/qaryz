@@ -53,7 +53,7 @@ export const useGroupStore = create<GroupStore>()(
       shares: [],
       syncStatus: "idle",
 
-      createGroup: async (name, emoji, description, photo) => {
+      createGroup: async (name, emoji, description, photo, invitedFriendIds?: string[]) => {
         const id = generateId();
         const user = useAuthStore.getState().user;
         if (!user) throw new Error("Not authenticated");
@@ -72,11 +72,20 @@ export const useGroupStore = create<GroupStore>()(
           joinedAt: new Date().toISOString(),
         };
 
-        set((s) => ({ groups: [...s.groups, newGroup], members: [...s.members, newMember] }));
+        // Build invited member records
+        const invitedMembers: GroupMember[] = (invitedFriendIds || []).map((friendId) => ({
+          id: generateId(), groupId: id, userId: friendId,
+          name: "Пользователь",
+          joinedAt: new Date().toISOString(),
+        }));
+
+        set((s) => ({
+          groups: [...s.groups, newGroup],
+          members: [...s.members, newMember, ...invitedMembers],
+        }));
 
         // Save to Supabase (best-effort — group already saved locally)
         try {
-          // Only send photo if it has a value (column may not exist yet)
           const groupPayload: Record<string, unknown> = {
             id, name, emoji: emoji || "👥", created_by: user.id,
             invite_code: newGroup.inviteCode,
@@ -84,21 +93,20 @@ export const useGroupStore = create<GroupStore>()(
           if (description) groupPayload.description = description;
           if (photo) groupPayload.photo = photo;
           await supabase.from("groups").insert(groupPayload);
-        } catch (e) {
-          // 400 = column mismatch (e.g. photo column doesn't exist yet) — ignore
-          console.warn("Could not save group to Supabase (will retry on sync):", (e as {message?: string})?.message);
-        }
 
-        try {
+          // Save creator as member
           await supabase.from("group_members").insert({
             id: memberId, group_id: id, user_id: user.id,
           });
-        } catch (e) {
-          // 409 = already a member (duplicate) — expected, ignore
-          const code = (e as {code?: string})?.code;
-          if (code !== "23505") {
-            console.warn("Could not save member to Supabase:", (e as {message?: string})?.message);
+
+          // Save invited friends as members
+          for (const m of invitedMembers) {
+            await supabase.from("group_members").insert({
+              id: m.id, group_id: id, user_id: m.userId,
+            });
           }
+        } catch (e) {
+          console.warn("Could not save group to Supabase (will retry on sync):", (e as {message?: string})?.message);
         }
 
         return id;
@@ -202,16 +210,6 @@ export const useGroupStore = create<GroupStore>()(
           joinedAt: new Date().toISOString(),
         };
         set((s) => ({ members: [...s.members, newMember] }));
-        // Also save to Supabase so friends can see the group on their devices
-        (async () => {
-          try {
-            await supabase.from("group_members").insert({
-              id, group_id: groupId, user_id: userId,
-            });
-          } catch {
-            // Best-effort — local state is the source of truth
-          }
-        })();
       },
 
       addExpense: async (groupId, paidBy, amount, description, category, splitMode, shares) => {

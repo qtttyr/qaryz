@@ -67,12 +67,7 @@ export function CreateGroupWizard({ onClose }: CreateGroupWizardProps) {
     if (creating || !name.trim()) return;
     setCreating(true);
     try {
-      const groupId = await createGroup(name.trim(), emoji, description);
-
-      // Note: Members will be invited via invite code (current implementation).
-      // The group is created with just the creator as member.
-      // Members can join via invite code or be added later.
-      // For now we create the group and navigate to it.
+      const groupId = await createGroup(name.trim(), emoji, description, undefined, selectedMemberIds);
 
       onClose();
       navigate(`/groups/${groupId}`);
