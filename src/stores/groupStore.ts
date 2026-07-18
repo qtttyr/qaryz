@@ -357,6 +357,7 @@ export const useGroupStore = create<GroupStore>()(
               id: g.id as string, name: g.name as string,
               description: (g.description as string) || undefined,
               emoji: (g.emoji as string) || "👥",
+              photo: (g.photo as string) || undefined,
               createdBy: g.created_by as string,
               inviteCode: g.invite_code as string,
               createdAt: g.created_at as string,

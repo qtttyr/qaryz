@@ -12,14 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuthStore } from "@/stores/authStore";
+import { useGroupStore } from "@/stores/groupStore";
 import { ArrowLeft, Plus, Users, Search, LogIn } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 
 export default function GroupsPage() {
   const groups = useGroups();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isMobile = useIsMobile();
+  const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "name" | "amount">("recent");
@@ -48,6 +51,7 @@ export default function GroupsPage() {
   }
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase}>
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b px-4 py-3">
@@ -117,5 +121,6 @@ export default function GroupsPage() {
         )}
       </div>
     </div>
+    </PullToRefresh>
   );
 }

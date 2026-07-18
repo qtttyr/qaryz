@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGroupStore } from "@/stores/groupStore";
 import { useAuthStore } from "@/stores/authStore";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { useFriendStore } from "@/stores/friendStore";
 import { PhotoUpload } from "@/components/groups/PhotoUpload";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 export default function GroupCreatePage() {
   const navigate = useNavigate();
+  const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
   const createGroup = useGroupStore((s) => s.createGroup);
   const user = useAuthStore((s) => s.user);
   const friends = useFriendStore((s) => s.friends);
@@ -61,6 +63,7 @@ export default function GroupCreatePage() {
   };
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase}>
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
@@ -228,5 +231,6 @@ export default function GroupCreatePage() {
         </Button>
       </div>
     </div>
+    </PullToRefresh>
   );
 }
