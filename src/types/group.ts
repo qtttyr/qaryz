@@ -3,6 +3,7 @@ export interface Group {
   name: string;
   description?: string;
   emoji: string;
+  photo?: string;
   createdBy: string;
   inviteCode: string;
   createdAt: string;

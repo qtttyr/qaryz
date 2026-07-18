@@ -52,7 +52,7 @@ export function useGroupDetail(groupId: string) {
     const grpMembers = allMembers.filter((m) => m.groupId === groupId);
     const grpExpenses = allExpenses
       .filter((e) => e.groupId === groupId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     const grpShares = shares.filter((s) =>
       grpExpenses.some((e) => e.id === s.expenseId)
     );

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "./authStore";
-import { useDebtStore } from "./debtStore";
+import { useUserStore } from "./userStore";
 import type { Group, GroupMember, Expense, ExpenseShare } from "@/types/group";
 
 function generateId(): string {
@@ -16,13 +16,14 @@ interface GroupStore {
   shares: ExpenseShare[];
   syncStatus: "idle" | "syncing" | "synced" | "error";
 
-  createGroup(name: string, emoji?: string, description?: string): Promise<string>;
+  createGroup(name: string, emoji?: string, description?: string, photo?: string): Promise<string>;
   deleteGroup(groupId: string): Promise<void>;
 
   joinByInvite(inviteCode: string): Promise<{ error?: string }>;
   leaveGroup(groupId: string): Promise<void>;
 
   getMembers(groupId: string): GroupMember[];
+  addMemberLocally(groupId: string, userId: string, memberId?: string, name?: string, avatarUrl?: string): void;
 
   addExpense(
     groupId: string,
@@ -43,49 +44,6 @@ interface GroupStore {
   syncFromSupabase: () => Promise<void>;
 }
 
-// ── Helper: ensure a Person exists in debtStore for a group member ──
-async function ensurePersonForUser(
-  userId: string,
-  displayName: string
-): Promise<string> {
-  const debtStore = useDebtStore.getState();
-
-  // Check Person with this id exists
-  const existing = debtStore.people.find((p) => p.id === userId);
-  if (existing) return existing.id;
-
-  // Create a new Person with id = userId
-  const newPerson = {
-    id: userId,
-    name: displayName,
-    createdAt: new Date().toISOString(),
-  };
-
-  debtStore.setData({
-    debts: useDebtStore.getState().debts,
-    payments: useDebtStore.getState().payments,
-    people: [...useDebtStore.getState().people, newPerson],
-  });
-
-  const user = useAuthStore.getState().user;
-  if (user) {
-    try {
-      await supabase.from("persons").insert({
-        id: userId,
-        user_id: user.id,
-        name: displayName,
-      });
-    } catch (e) {
-      // Person may already exist — ignore
-      if ((e as { code?: string })?.code !== "23505") {
-        console.error("Failed to create person in Supabase:", e);
-      }
-    }
-  }
-
-  return userId;
-}
-
 export const useGroupStore = create<GroupStore>()(
   persist(
     (set, get) => ({
@@ -95,35 +53,52 @@ export const useGroupStore = create<GroupStore>()(
       shares: [],
       syncStatus: "idle",
 
-      createGroup: async (name, emoji, description) => {
+      createGroup: async (name, emoji, description, photo) => {
         const id = generateId();
         const user = useAuthStore.getState().user;
         if (!user) throw new Error("Not authenticated");
 
         const newGroup: Group = {
-          id, name, emoji: emoji || "👥", description,
+          id, name, emoji: emoji || "👥", description, photo,
           createdBy: user.id, inviteCode: id.slice(0, 6).toUpperCase(),
           createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         };
 
         const memberId = generateId();
+        const creatorName = useUserStore.getState().profile.name || user.user_metadata?.name as string || "Пользователь";
         const newMember: GroupMember = {
-          id: memberId, groupId: id, userId: user.id, joinedAt: new Date().toISOString(),
+          id: memberId, groupId: id, userId: user.id,
+          name: creatorName,
+          joinedAt: new Date().toISOString(),
         };
 
         set((s) => ({ groups: [...s.groups, newGroup], members: [...s.members, newMember] }));
 
+        // Save to Supabase (best-effort — group already saved locally)
         try {
-          await supabase.from("groups").insert({
-            id, name, emoji: emoji || "👥", description: description || null,
-            created_by: user.id, invite_code: newGroup.inviteCode,
-          });
+          // Only send photo if it has a value (column may not exist yet)
+          const groupPayload: Record<string, unknown> = {
+            id, name, emoji: emoji || "👥", created_by: user.id,
+            invite_code: newGroup.inviteCode,
+          };
+          if (description) groupPayload.description = description;
+          if (photo) groupPayload.photo = photo;
+          await supabase.from("groups").insert(groupPayload);
+        } catch (e) {
+          // 400 = column mismatch (e.g. photo column doesn't exist yet) — ignore
+          console.warn("Could not save group to Supabase (will retry on sync):", (e as {message?: string})?.message);
+        }
+
+        try {
           await supabase.from("group_members").insert({
             id: memberId, group_id: id, user_id: user.id,
           });
         } catch (e) {
-          console.error("Failed to save group to Supabase:", e);
-          // Group exists locally — will be preserved by merge in syncFromSupabase
+          // 409 = already a member (duplicate) — expected, ignore
+          const code = (e as {code?: string})?.code;
+          if (code !== "23505") {
+            console.warn("Could not save member to Supabase:", (e as {message?: string})?.message);
+          }
         }
 
         return id;
@@ -172,15 +147,61 @@ export const useGroupStore = create<GroupStore>()(
       leaveGroup: async (groupId) => {
         const user = useAuthStore.getState().user;
         if (!user) return;
-        set((s) => ({
-          members: s.members.filter((m) => !(m.groupId === groupId && m.userId === user.id)),
-        }));
-        await supabase.from("group_members").delete()
-          .eq("group_id", groupId).eq("user_id", user.id);
+        const group = get().groups.find((g) => g.id === groupId);
+        const isCreator = group?.createdBy === user.id;
+
+        if (isCreator) {
+          // Creator leaving = delete the whole group
+          const expenseIds = get().expenses
+            .filter((e) => e.groupId === groupId)
+            .map((e) => e.id);
+
+          set((s) => ({
+            groups: s.groups.filter((g) => g.id !== groupId),
+            members: s.members.filter((m) => m.groupId !== groupId),
+            expenses: s.expenses.filter((e) => e.groupId !== groupId),
+            shares: s.shares.filter((sh) => !expenseIds.includes(sh.expenseId)),
+          }));
+          try {
+            if (expenseIds.length > 0) {
+              await supabase.from("expense_shares").delete().in("expense_id", expenseIds);
+              await supabase.from("expenses").delete().eq("group_id", groupId);
+            }
+            await supabase.from("group_members").delete().eq("group_id", groupId);
+            await supabase.from("groups").delete().eq("id", groupId);
+          } catch (e) {
+            console.error("Failed to delete group from Supabase:", e);
+          }
+        } else {
+          // Regular member leaving — remove group + membership from local state
+          set((s) => ({
+            groups: s.groups.filter((g) => g.id !== groupId),
+            members: s.members.filter((m) => !(m.groupId === groupId && m.userId === user.id)),
+          }));
+          try {
+            await supabase.from("group_members").delete()
+              .eq("group_id", groupId).eq("user_id", user.id);
+          } catch (e) {
+            console.error("Failed to remove member from Supabase:", e);
+          }
+        }
       },
 
       getMembers(groupId) {
         return get().members.filter((m) => m.groupId === groupId);
+      },
+
+      addMemberLocally(groupId, userId, memberId, name, avatarUrl) {
+        const id = memberId || generateId();
+        const existing = get().members.find(
+          (m) => m.groupId === groupId && m.userId === userId
+        );
+        if (existing) return;
+        const newMember: GroupMember = {
+          id, groupId, userId, name, avatarUrl,
+          joinedAt: new Date().toISOString(),
+        };
+        set((s) => ({ members: [...s.members, newMember] }));
       },
 
       addExpense: async (groupId, paidBy, amount, description, category, splitMode, shares) => {
@@ -216,51 +237,34 @@ export const useGroupStore = create<GroupStore>()(
         } catch (e) {
           console.error("Failed to save expense to Supabase:", e);
         }
-
-        // ── Create debts for each share where user ≠ payer ──
-        const allMembers = get().members.filter((m) => m.groupId === groupId);
-        const nameMap: Record<string, string> = {};
-        for (const m of allMembers) {
-          nameMap[m.userId] = m.nickname || m.name || "Пользователь";
-        }
-        const groupName = get().groups.find((g) => g.id === groupId)?.name || "";
-
-        for (const share of newShares) {
-          if (share.userId !== paidBy && user) {
-            const personName = nameMap[share.userId] || "Пользователь";
-            const personId = await ensurePersonForUser(share.userId, personName);
-
-            const direction = paidBy === user.id ? "owed_to_me" : "i_owe";
-            try {
-              await useDebtStore.getState().addDebt({
-                personId,
-                direction,
-                amount: share.shareAmount,
-                description: `${groupName}: ${description}`,
-              });
-            } catch (e) {
-              console.error("Failed to create debt from expense:", e);
-            }
-          }
-        }
       },
 
       deleteExpense: async (expenseId) => {
+        // Get shares before removing (need IDs for Supabase)
+        const expenseShares = get().shares.filter((sh) => sh.expenseId === expenseId);
+        const shareIds = expenseShares.map((s) => s.id);
+
+        // Remove locally first (instant UI update)
         set((s) => ({
           expenses: s.expenses.filter((e) => e.id !== expenseId),
           shares: s.shares.filter((sh) => sh.expenseId !== expenseId),
         }));
+
+        // Remove from Supabase (best-effort)
         try {
+          if (shareIds.length > 0) {
+            await supabase.from("expense_shares").delete().in("id", shareIds);
+          }
           await supabase.from("expenses").delete().eq("id", expenseId);
         } catch (e) {
-          console.error("Failed to delete expense in Supabase:", e);
+          console.error("Failed to delete expense from Supabase:", e);
         }
       },
 
       getExpenses(groupId) {
         return get().expenses
           .filter((e) => e.groupId === groupId)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       },
 
       getShares(expenseId) {
@@ -312,12 +316,27 @@ export const useGroupStore = create<GroupStore>()(
           const groupIds = [...new Set((memberRows || []).map((r) => r.group_id as string))];
 
           if (groupIds.length > 0) {
+            // Step 1: fetch members without embedded profiles() join (causes 400 on missing FK)
             const [groupsRes, membersRes, expensesRes, sharesRes] = await Promise.all([
               supabase.from("groups").select("*").in("id", groupIds),
-              supabase.from("group_members").select("*, profiles(name, avatar_url)").in("group_id", groupIds),
+              supabase.from("group_members").select("*").in("group_id", groupIds),
               supabase.from("expenses").select("*").in("group_id", groupIds),
               supabase.from("expense_shares").select("*"),
             ]);
+
+            // Step 2: fetch profiles separately and merge into members
+            const rawMembers = (membersRes.data || []) as Record<string, unknown>[];
+            const userIds = [...new Set(rawMembers.map((m) => m.user_id as string))];
+            const profileMap: Record<string, { name?: string; avatar_url?: string }> = {};
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, name, avatar_url")
+                .in("id", userIds);
+              for (const p of (profiles || [])) {
+                profileMap[p.id as string] = p as { name?: string; avatar_url?: string };
+              }
+            }
 
             const allShares = sharesRes.data || [];
             const expenseIds = (expensesRes.data || []).map((e: Record<string, unknown>) => e.id);
@@ -336,13 +355,13 @@ export const useGroupStore = create<GroupStore>()(
               updatedAt: g.updated_at as string,
             }));
 
-            const serverMembers: GroupMember[] = (membersRes.data || []).map((m: Record<string, unknown>) => {
-              const p = m.profiles as Record<string, unknown> | undefined;
+            const serverMembers: GroupMember[] = rawMembers.map((m) => {
+              const p = profileMap[m.user_id as string] || {};
               return {
                 id: m.id as string, groupId: m.group_id as string,
                 userId: m.user_id as string, nickname: (m.nickname as string) || undefined,
                 joinedAt: m.joined_at as string,
-                name: p?.name as string, avatarUrl: p?.avatar_url as string,
+                name: p.name as string, avatarUrl: p.avatar_url as string,
               };
             });
 
@@ -364,13 +383,27 @@ export const useGroupStore = create<GroupStore>()(
             // ── MERGE: source of truth = server for existing groups; keep local-only ──
             const serverGroupIdSet = new Set(serverGroups.map((g) => g.id));
 
+            // Merge groups: server wins, but overlay local photo/description if missing on server
             const mergedGroups = [
               ...serverGroups,
               ...localState.groups.filter((g) => !serverGroupIdSet.has(g.id)),
-            ];
+            ].map((g) => {
+              const local = localState.groups.find((lg) => lg.id === g.id);
+              if (local) {
+                return { ...g, photo: g.photo || local.photo };
+              }
+              return g;
+            });
+            // For members: merge server + local (local members for server groups are kept if not in server)
+            const serverMemberKeySet = new Set(
+              serverMembers.map((m) => `${m.groupId}:${m.userId}`)
+            );
             const mergedMembers = [
               ...serverMembers,
-              ...localState.members.filter((m) => !serverGroupIdSet.has(m.groupId)),
+              ...localState.members.filter((m) => {
+                if (!serverGroupIdSet.has(m.groupId)) return true;
+                return !serverMemberKeySet.has(`${m.groupId}:${m.userId}`);
+              }),
             ];
             const mergedExpenses = [
               ...serverExpenses,

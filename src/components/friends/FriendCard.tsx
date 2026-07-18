@@ -17,7 +17,9 @@ export const FriendCard = memo(
     const isPositive = friend.balance > 0;
 
     return (
-      <motion.button
+      <motion.div
+        role="button"
+        tabIndex={0}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{
@@ -27,7 +29,8 @@ export const FriendCard = memo(
         }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border/50 hover:border-border hover:bg-accent/30 transition-all duration-200 text-left"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
+        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border/50 hover:border-border hover:bg-accent/30 transition-all duration-200 text-left cursor-pointer"
       >
         {/* Avatar — Instagram-style ring */}
         <div className="relative shrink-0">
@@ -123,7 +126,7 @@ export const FriendCard = memo(
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </div>
-      </motion.button>
+      </motion.div>
     );
   },
   (prev, next) => prev.friend.id === next.friend.id && prev.index === next.index

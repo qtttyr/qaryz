@@ -5,12 +5,6 @@ import { GroupCard } from "@/components/groups/GroupCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -18,22 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuthStore } from "@/stores/authStore";
-import { useGroupStore } from "@/stores/groupStore";
-import { Plus, Users, Search, Loader2, LogIn } from "lucide-react";
+import { ArrowLeft, Plus, Users, Search, LogIn } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function GroupsPage() {
   const groups = useGroups();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const syncStatus = useGroupStore((s) => s.syncStatus);
-  const createGroup = useGroupStore((s) => s.createGroup);
+  const isMobile = useIsMobile();
 
-  const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "name" | "amount">("recent");
-  const [createName, setCreateName] = useState("");
-  const [createEmoji, setCreateEmoji] = useState("👥");
-  const [creating, setCreating] = useState(false);
 
   const filtered = groups
     .filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
@@ -42,20 +31,6 @@ export default function GroupsPage() {
       if (sort === "amount") return b.total - a.total;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-
-  const handleCreate = async () => {
-    if (creating || !createName.trim()) return;
-    setCreating(true);
-    try {
-      await createGroup(createName.trim(), createEmoji);
-      setShowCreate(false);
-      setCreateName("");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCreating(false);
-    }
-  };
 
   if (!user) {
     return (
@@ -76,9 +51,14 @@ export default function GroupsPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b px-4 py-3">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold">Группы</h1>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
+        <div className="flex items-center gap-3 mb-3">
+          {isMobile && (
+            <button onClick={() => navigate("/friends")} className="p-1 -ml-1">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <h1 className="text-xl font-bold flex-1">Группы</h1>
+          <Button size="sm" onClick={() => navigate("/groups/create")}>
             <Plus className="w-4 h-4 mr-1" /> Создать
           </Button>
         </div>
@@ -107,11 +87,7 @@ export default function GroupsPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {syncStatus === "syncing" && groups.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Users className="w-8 h-8 text-muted-foreground/60" />
@@ -120,7 +96,7 @@ export default function GroupsPage() {
               {search ? "Группы не найдены" : "У вас пока нет групп"}
             </p>
             {!search && (
-              <Button variant="link" onClick={() => setShowCreate(true)} className="mt-1">
+              <Button variant="link" onClick={() => navigate("/groups/create")} className="mt-1">
                 Создать первую группу
               </Button>
             )}
@@ -129,48 +105,17 @@ export default function GroupsPage() {
           filtered.map((g) => (
             <GroupCard
               key={g.id}
-              {...g}
-              balance={0}
+              id={g.id}
+              name={g.name}
+              emoji={g.emoji}
+              photo={g.photo}
+              memberCount={g.memberCount}
+              total={g.total}
               onClick={() => navigate(`/groups/${g.id}`)}
             />
           ))
         )}
       </div>
-
-      {/* Create Group Dialog */}
-      {showCreate && (
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Новая группа</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="👥"
-                  value={createEmoji}
-                  onChange={(e) => setCreateEmoji(e.target.value)}
-                  className="w-16 text-center text-xl"
-                  maxLength={2}
-                />
-                <Input
-                  placeholder="Название группы"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-              <Button
-                onClick={handleCreate}
-                disabled={!createName.trim() || creating}
-                className="w-full"
-              >
-                {creating ? "Создание..." : "Создать группу"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

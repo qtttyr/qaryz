@@ -15,7 +15,10 @@ const PersonDetailPage = lazy(() => import("@/pages/PersonDetailPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 const GroupsPage = lazy(() => import("@/pages/GroupsPage"));
+const GroupCreatePage = lazy(() => import("@/pages/GroupCreatePage"));
 const GroupDetailPage = lazy(() => import("@/pages/GroupDetailPage"));
+const GroupInfoPage = lazy(() => import("@/pages/GroupInfoPage"));
+const AddExpensePage = lazy(() => import("@/pages/AddExpensePage"));
 const JoinPage = lazy(() => import("@/pages/JoinPage"));
 const AddFriendPage = lazy(() => import("@/pages/AddFriendPage"));
 const FriendsPage = lazy(() => import("@/pages/FriendsPage"));
@@ -126,10 +129,34 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "groups/create",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <GroupCreatePage />
+          </Suspense>
+        ),
+      },
+      {
         path: "groups/:id",
         element: (
           <Suspense fallback={<PageLoader />}>
             <GroupDetailPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "groups/:id/info",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <GroupInfoPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "groups/:id/add-expense",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <AddExpensePage />
           </Suspense>
         ),
       },

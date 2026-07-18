@@ -6,7 +6,7 @@ import { useFriendsWithBalances } from "@/hooks/useFriendsWithBalances";
 import { FriendCard } from "@/components/friends/FriendCard";
 import { FriendRequests } from "@/components/friends/FriendRequests";
 import { Button } from "@/components/ui/button";
-import { Users, UserPlus, Search, Loader2, LogIn, UserRoundPlus } from "lucide-react";
+import { Users, UserPlus, Search, Loader2, LogIn, UserRoundPlus, ChevronRight } from "lucide-react";
 
 export default function FriendsPage() {
   const { friends, totalFriends, friendsWithDebts } = useFriendsWithBalances();
@@ -82,6 +82,23 @@ export default function FriendsPage() {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         )}
+
+        {/* Groups pill */}
+        <button
+          onClick={() => navigate("/groups")}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-primary/5 border border-primary/10 hover:bg-primary/10 active:scale-[0.98] transition-all duration-200"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-lg">
+              👥
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-foreground">Группы</p>
+              <p className="text-[11px] text-muted-foreground">Совместные расходы с друзьями</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+        </button>
 
         {/* Friend requests section */}
         <FriendRequests />
