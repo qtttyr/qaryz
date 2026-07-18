@@ -8,14 +8,18 @@ interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
   disabled?: boolean;
   children: React.ReactNode;
-  className?: string;
+  /** Classes for the inner content wrapper (flex layout, etc.) */
+  contentClassName?: string;
+  /** Classes for the outer touch wrapper (usually not needed) */
+  wrapperClassName?: string;
 }
 
 export default function PullToRefresh({
   onRefresh,
   disabled = false,
   children,
-  className,
+  contentClassName,
+  wrapperClassName,
 }: PullToRefreshProps) {
   const { pullDistance, isRefreshing, handlers } = usePullToRefresh({
     onRefresh,
@@ -27,7 +31,7 @@ export default function PullToRefresh({
   return (
     <div
       {...handlers}
-      className={cn("relative touch-pan-y", className)}
+      className={cn("relative touch-pan-y", wrapperClassName)}
     >
       {/* Pull indicator */}
       {pullDistance > 0 && (
@@ -70,6 +74,7 @@ export default function PullToRefresh({
 
       {/* Content */}
       <div
+        className={contentClassName}
         style={{
           transform: `translateY(${Math.min(pullDistance, 60)}px)`,
           transition: isRefreshing || pullDistance === 0

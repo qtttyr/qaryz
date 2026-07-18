@@ -369,7 +369,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   );
 
   return (
-    <PullToRefresh onRefresh={syncFromSupabase} className="flex flex-col flex-1 min-h-0 bg-background">
+    <PullToRefresh onRefresh={syncFromSupabase} contentClassName="flex flex-col flex-1 min-h-0 bg-background">
       {/* ═══ Header ═══ */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/30">
         <div className="flex items-center px-4 h-14 gap-3">
