@@ -203,13 +203,15 @@ export const useGroupStore = create<GroupStore>()(
         };
         set((s) => ({ members: [...s.members, newMember] }));
         // Also save to Supabase so friends can see the group on their devices
-        try {
-          supabase.from("group_members").insert({
-            id, group_id: groupId, user_id: userId,
-          }).then(() => {}).catch(() => {});
-        } catch (_e) {
-          // Best-effort — local state is the source of truth
-        }
+        (async () => {
+          try {
+            await supabase.from("group_members").insert({
+              id, group_id: groupId, user_id: userId,
+            });
+          } catch {
+            // Best-effort — local state is the source of truth
+          }
+        })();
       },
 
       addExpense: async (groupId, paidBy, amount, description, category, splitMode, shares) => {
