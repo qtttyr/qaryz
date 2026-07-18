@@ -106,7 +106,13 @@ create policy "Members can view group members"
 
 create policy "Users can join groups"
   on public.group_members for insert
-  with check (auth.uid() = user_id);
+  with check (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.groups g
+      where g.id = group_id and g.created_by = auth.uid()
+    )
+  );
 
 create policy "Users can leave groups"
   on public.group_members for delete
