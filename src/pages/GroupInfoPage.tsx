@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useGroupDetail } from "@/hooks/useGroups";
 import { useGroupStore } from "@/stores/groupStore";
 import { useAuthStore } from "@/stores/authStore";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { MemberAvatar } from "@/components/groups/MemberAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ export default function GroupInfoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
   const leaveGroup = useGroupStore((s) => s.leaveGroup);
 
   const { group, members, expenses, balances, total } = useGroupDetail(id || "");
@@ -53,6 +55,7 @@ export default function GroupInfoPage() {
     balances.find((b) => b.userId === userId);
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase}>
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
@@ -208,5 +211,6 @@ export default function GroupInfoPage() {
         </Button>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

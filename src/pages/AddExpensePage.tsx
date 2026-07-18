@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGroupStore } from "@/stores/groupStore";
 import { useAuthStore } from "@/stores/authStore";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EXPENSE_CATEGORIES } from "@/types/group";
@@ -14,6 +15,7 @@ export default function AddExpensePage() {
   const user = useAuthStore((s) => s.user);
   const allMembers = useGroupStore((s) => s.members);
   const addExpense = useGroupStore((s) => s.addExpense);
+  const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
   const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId));
 
   const members = useMemo(
@@ -74,6 +76,7 @@ export default function AddExpensePage() {
   const canSubmit = totalAmount > 0 && !!paidBy && !submitting;
 
   return (
+    <PullToRefresh onRefresh={syncFromSupabase}>
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
@@ -220,5 +223,6 @@ export default function AddExpensePage() {
         </Button>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

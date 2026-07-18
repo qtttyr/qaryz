@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import {
   ArrowLeft,
   Plus,
@@ -297,6 +298,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   const user = useAuthStore((s) => s.user);
   const getShares = useGroupStore((s) => s.getShares);
   const deleteExpense = useGroupStore((s) => s.deleteExpense);
+  const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
   const isMobile = useIsMobile();
 
   const { group, members, expenses, balances, total } = useGroupDetail(groupId);
@@ -367,7 +369,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-background">
+    <PullToRefresh onRefresh={syncFromSupabase} className="flex flex-col flex-1 min-h-0 bg-background">
       {/* ═══ Header ═══ */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/30">
         <div className="flex items-center px-4 h-14 gap-3">
@@ -616,6 +618,6 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
           </Dialog>
         );
       })()}
-    </div>
+    </PullToRefresh>
   );
 }
