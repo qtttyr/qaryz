@@ -2,10 +2,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useGroupDetail } from "@/hooks/useGroups";
 import { useGroupStore } from "@/stores/groupStore";
 import { useAuthStore } from "@/stores/authStore";
+import { createGroupSettlementDebts } from "@/lib/groupSettlementToDebt";
 import PullToRefresh from "@/components/layout/PullToRefresh";
 import { MemberAvatar } from "@/components/groups/MemberAvatar";
+import { GroupSettlementSummary } from "@/components/groups/GroupSettlementSummary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { showToast } from "@/components/shared/Toast";
 import { ArrowLeft, LogIn, ArrowRightFromLine } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -14,9 +17,10 @@ export default function GroupInfoPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const syncFromSupabase = useGroupStore((s) => s.syncFromSupabase);
+  const settleAllExpenses = useGroupStore((s) => s.settleAllExpenses);
   const leaveGroup = useGroupStore((s) => s.leaveGroup);
 
-  const { group, members, expenses, balances, total } = useGroupDetail(id || "");
+  const { group, members, expenses, balances, total, activeTotal, settledCount, activeCount } = useGroupDetail(id || "");
 
   if (!id || !group) {
     return (
@@ -39,6 +43,27 @@ export default function GroupInfoPage() {
       </div>
     );
   }
+
+  const handleSettleAll = async () => {
+    try {
+      await settleAllExpenses(id, user.id);
+
+      // После закрытия — перенести балансы в личные долги
+      try {
+        const created = await createGroupSettlementDebts(id, group.name);
+        if (created) {
+          showToast("🎉 Счёт закрыт! Долги добавлены в личный раздел.", "success");
+        } else {
+          showToast("🎉 Все расходы закрыты! Счёт погашен.", "success");
+        }
+      } catch {
+        // Даже если создание долгов упало, расходы уже закрыты
+        showToast("🎉 Расходы закрыты. Долги будут добавлены при синхронизации.", "success");
+      }
+    } catch {
+      showToast("Не удалось закрыть счёт", "error");
+    }
+  };
 
   const handleLeave = async () => {
     const isCreator = group.createdBy === user?.id;
@@ -162,11 +187,28 @@ export default function GroupInfoPage() {
             </div>
           </motion.div>
 
+          {/* ── Settlement Summary (чек-итог) ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="pt-5"
+          >
+            <GroupSettlementSummary
+              balances={balances}
+              activeTotal={activeTotal}
+              activeCount={activeCount}
+              settledCount={settledCount}
+              currentUserId={user.id}
+              onSettleAll={handleSettleAll}
+            />
+          </motion.div>
+
           {/* ── Stats ── */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.12 }}
             className="pt-5"
           >
             <h3 className="text-xs font-medium text-muted-foreground/50 uppercase tracking-wider mb-3">

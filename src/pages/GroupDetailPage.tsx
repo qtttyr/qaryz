@@ -1,4 +1,4 @@
-import { Component, useState, useRef, useEffect, useCallback } from "react";
+import { Component, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGroupDetail } from "@/hooks/useGroups";
 import { useGroupStore } from "@/stores/groupStore";
@@ -39,8 +39,10 @@ import {
   AlertTriangle,
   Trash2,
   Users,
+  CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { showToast } from "@/components/shared/Toast";
 import type { Expense, ExpenseShare } from "@/types/group";
 
 // ─── Error Boundary ───────────────────────────────────────
@@ -104,7 +106,9 @@ function buildExpenseBubbles(
   getShares: (expenseId: string) => (ExpenseShare & { name?: string })[],
   memberNameMap: Record<string, string>,
   currentUserId: string,
-  onExpenseClick: (expense: Expense, shares: (ExpenseShare & { name?: string })[]) => void
+  onExpenseClick: (expense: Expense, shares: (ExpenseShare & { name?: string })[]) => void,
+  onSettleExpense: (expenseId: string) => void,
+  settlingId: string | null
 ): { date: string; items: React.ReactNode[] }[] {
   // Step 1: group expenses by date
   const dateGroups: { date: string; dateLabel: string; expenses: Expense[] }[] = [];
@@ -139,13 +143,19 @@ function buildExpenseBubbles(
       }
       const expenseShares = shareCache.get(expense.id)!;
       const isMine = expense.paidBy === currentUserId;
-      const canDelete = isMine;
+      const isSettled = expense.settled;
+      const isSettling = settlingId === expense.id;
+      const canDelete = isMine && !isSettled;
+      const canSettle = isMine && !isSettled;
 
       const bubbleContent = (
         <MessageGroup>
           <Message align={isMine ? "end" : "start"}>
             {!isMine && (
-              <div className="flex w-fit min-w-8 shrink-0 items-center self-end overflow-hidden rounded-full bg-muted">
+              <div className={cn(
+                "flex w-fit min-w-8 shrink-0 items-center self-end overflow-hidden rounded-full",
+                isSettled ? "opacity-50" : "bg-muted"
+              )}>
                 <MemberAvatar
                   name={memberNameMap[expense.paidBy] || "?"}
                   size="sm"
@@ -154,32 +164,54 @@ function buildExpenseBubbles(
             )}
             <MessageContent>
               <Bubble
-                variant={isMine ? "default" : "secondary"}
+                variant={isMine
+                  ? isSettled ? "secondary" : "default"
+                  : "secondary"
+                }
                 align={isMine ? "end" : "start"}
               >
-                <BubbleContent className="space-y-1.5">
-                  {/* Amount row */}
+                <BubbleContent className={cn(
+                  "space-y-1.5 transition-all duration-300",
+                  isSettled && "opacity-55"
+                )}>
+                  {/* ── Amount row ── */}
                   <div className="flex items-center gap-2">
+                    {isSettled && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
                     <span className="text-lg">{getCategoryEmoji(expense.category)}</span>
-                    <span className="text-lg font-bold tabular-nums">
+                    <span className={cn(
+                      "text-lg tabular-nums",
+                      isSettled ? "font-semibold line-through decoration-muted-foreground/30" : "font-bold"
+                    )}>
                       {expense.amount.toLocaleString()} ₸
                     </span>
+                    {isSettled && (
+                      <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                        Закрыт
+                      </span>
+                    )}
                   </div>
 
-                  {/* Description */}
+                  {/* ── Description ── */}
                   {expense.description && (
-                    <p className="text-sm leading-snug opacity-80">
+                    <p className={cn(
+                      "text-sm leading-snug",
+                      isSettled ? "opacity-50" : "opacity-80"
+                    )}>
                       {expense.description}
                     </p>
                   )}
 
-                  {/* Who paid */}
-                  <p className="text-[11px] font-medium opacity-60">
-                    {isMine ? "Я заплатил(а)" : `${memberNameMap[expense.paidBy] || "Пользователь"} заплатил(а)`}
-                  </p>
+                  {/* ── Who paid ── */}
+                  {!isSettled && (
+                    <p className="text-[11px] font-medium opacity-60">
+                      {isMine ? "Я заплатил(а)" : `${memberNameMap[expense.paidBy] || "Пользователь"} заплатил(а)`}
+                    </p>
+                  )}
 
-                  {/* Shares */}
-                  {expenseShares.length > 0 && (
+                  {/* ── Shares (только для активных) ── */}
+                  {!isSettled && expenseShares.length > 0 && (
                     <div className={cn(
                       "flex flex-wrap gap-1 pt-1.5 border-t",
                       isMine ? "border-primary-foreground/20" : "border-border/30"
@@ -197,6 +229,50 @@ function buildExpenseBubbles(
                           {s.name}: {s.shareAmount.toLocaleString()} ₸
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {/* ── Settled info (для закрытых) ── */}
+                  {isSettled && (
+                    <p className="text-[11px] font-medium text-emerald-500/70 pt-0.5">
+                      ✅ Все скинулись
+                      {expense.settledAt && (
+                        <span className="text-muted-foreground/40 ml-1">
+                          · {new Date(expense.settledAt).toLocaleTimeString("ru-RU", {
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  )}
+
+                  {/* ── Settle button (только для active + мой расход) ── */}
+                  {canSettle && (
+                    <div className="pt-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSettleExpense(expense.id);
+                        }}
+                        disabled={isSettling}
+                        className={cn(
+                          "w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150",
+                          "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20",
+                          "active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
+                        )}
+                      >
+                        {isSettling ? (
+                          <>
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+                            Закрытие...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Все скинулись
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </BubbleContent>
@@ -217,10 +293,23 @@ function buildExpenseBubbles(
       return (
         <div
           key={expense.id}
-          onClick={canDelete ? () => onExpenseClick(expense, expenseShares) : undefined}
-          className={cn(canDelete && "cursor-pointer active:scale-[0.98] transition-transform duration-100")}
+          onClick={canDelete ? (e) => {
+            // Не открывать детали при клике на кнопку settle
+            if ((e.target as HTMLElement).closest('button')) return;
+            onExpenseClick(expense, expenseShares);
+          } : undefined}
+          className={cn(
+            canDelete && !isSettled && "cursor-pointer active:scale-[0.98] transition-transform duration-100"
+          )}
         >
-          {bubbleContent}
+          <motion.div
+            layout
+            initial={isSettled ? { opacity: 0.7, scale: 0.98 } : false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {bubbleContent}
+          </motion.div>
         </div>
       );
     });
@@ -228,7 +317,6 @@ function buildExpenseBubbles(
     return {
       date: dg.date,
       items: [
-        // Date separator (once per date group, at the top)
         <div key={`sep-${dg.date}`} className="flex justify-center my-2">
           <Bubble variant="ghost">
             <BubbleContent className="text-center !p-1">
@@ -236,7 +324,6 @@ function buildExpenseBubbles(
             </BubbleContent>
           </Bubble>
         </div>,
-        // All expenses for this date
         ...expenseNodes,
       ],
     };
@@ -297,16 +384,42 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   const user = useAuthStore((s) => s.user);
   const getShares = useGroupStore((s) => s.getShares);
   const deleteExpense = useGroupStore((s) => s.deleteExpense);
+  const settleExpense = useGroupStore((s) => s.settleExpense);
   const isMobile = useIsMobile();
 
-  const { group, members, expenses, balances, total } = useGroupDetail(groupId);
+  const { group, members, expenses, balances, total, activeTotal, settledCount, activeCount } = useGroupDetail(groupId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [expenseFilter, setExpenseFilter] = useState<"all" | "active" | "settled">("all");
+  const [settlingId, setSettlingId] = useState<string | null>(null);
 
   const goBack = () => navigate("/groups");
+
+  // ── Handle settle expense ──
+  const handleSettleExpense = useCallback(async (expenseId: string) => {
+    if (!user || settlingId) return;
+    setSettlingId(expenseId);
+    try {
+      await settleExpense(expenseId, user.id);
+      showToast("✅ Расход закрыт — все скинулись", "success");
+    } catch {
+      showToast("Не удалось закрыть расход", "error");
+    } finally {
+      setSettlingId(null);
+    }
+  }, [user, settlingId, settleExpense]);
+
+  // ── Filter expenses ──
+  const filteredExpenses = useMemo(() => {
+    switch (expenseFilter) {
+      case "active": return expenses.filter((e) => !e.settled);
+      case "settled": return expenses.filter((e) => e.settled);
+      default: return expenses;
+    }
+  }, [expenses, expenseFilter]);
 
   // Auto-scroll to bottom on new expense
   useEffect(() => {
@@ -359,11 +472,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
 
   // Build message bubbles
   const messageGroups = buildExpenseBubbles(
-    expenses,
+    filteredExpenses,
     getShares,
     memberNameMap,
     user.id,
-    (expense) => setSelectedExpense(expense)
+    (expense) => setSelectedExpense(expense),
+    handleSettleExpense,
+    settlingId
   );
 
   return (
@@ -387,7 +502,11 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
               <p className="text-[11px] text-muted-foreground/60 truncate">
                 {members.length}{" "}
                 {members.length === 1 ? "участник" : members.length < 5 ? "участника" : "участников"}
-                {total > 0 && ` · ${total.toLocaleString()} ₸`}
+                {total > 0 && (
+                  settledCount > 0
+                    ? ` · ${activeTotal.toLocaleString()} ₸ активных`
+                    : ` · ${total.toLocaleString()} ₸`
+                )}
               </p>
             </div>
           </div>
@@ -400,6 +519,42 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
         </div>
       </div>
 
+      {/* ═══ Filter Toggle ═══ */}
+      {expenses.length > 0 && (
+        <div className="flex justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/10">
+          <div className="flex gap-0.5 bg-muted/60 p-0.5 rounded-lg">
+            {([
+              { key: "all" as const, label: "Все", count: expenses.length },
+              { key: "active" as const, label: "Активные", count: activeCount },
+              { key: "settled" as const, label: "Закрытые", count: settledCount },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setExpenseFilter(tab.key)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150",
+                  expenseFilter === tab.key
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground/60 hover:text-muted-foreground"
+                )}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={cn(
+                    "text-[10px] tabular-nums",
+                    expenseFilter === tab.key
+                      ? "text-muted-foreground/60"
+                      : "text-muted-foreground/30"
+                  )}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ═══ Chat Area ═══ */}
       <div className="flex-1 relative min-h-0">
         <div
@@ -407,37 +562,52 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
           onScroll={handleScroll}
           className="absolute inset-0 overflow-y-auto px-3 py-2"
         >
-          {expenses.length === 0 ? (
+          {filteredExpenses.length === 0 ? (
             /* ── Empty state ── */
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4 text-3xl overflow-hidden">
-                {group.photo ? (
-                  <img src={group.photo} alt={group.name} className="w-full h-full object-cover" />
-                ) : (
-                  group.emoji
-                )}
-              </div>
-              <h2 className="text-base font-semibold mb-1">{group.name}</h2>
-              <p className="text-sm text-muted-foreground/70 max-w-xs mb-6">
-                Напишите первый расход, чтобы начать
-              </p>
-
-              {/* Member avatars */}
-              {members.length > 0 && (
-                <div className="flex -space-x-2 mb-4">
-                  {members.slice(0, 6).map((m) => (
-                    <div key={m.id} className="ring-2 ring-background rounded-full">
-                      <MemberAvatar
-                        name={m.nickname || m.name || "?"}
-                        size="sm"
-                      />
-                    </div>
-                  ))}
-                  {members.length > 6 && (
-                    <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
-                      +{members.length - 6}
+              {expenses.length === 0 ? (
+                <>
+                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4 text-3xl overflow-hidden">
+                    {group.photo ? (
+                      <img src={group.photo} alt={group.name} className="w-full h-full object-cover" />
+                    ) : (
+                      group.emoji
+                    )}
+                  </div>
+                  <h2 className="text-base font-semibold mb-1">{group.name}</h2>
+                  <p className="text-sm text-muted-foreground/70 max-w-xs mb-6">
+                    Напишите первый расход, чтобы начать
+                  </p>
+                  {members.length > 0 && (
+                    <div className="flex -space-x-2 mb-4">
+                      {members.slice(0, 6).map((m) => (
+                        <div key={m.id} className="ring-2 ring-background rounded-full">
+                          <MemberAvatar
+                            name={m.nickname || m.name || "?"}
+                            size="sm"
+                          />
+                        </div>
+                      ))}
+                      {members.length > 6 && (
+                        <div className="w-6 h-6 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                          +{members.length - 6}
+                        </div>
+                      )}
                     </div>
                   )}
+                </>
+              ) : expenseFilter === "active" ? (
+                <div className="flex flex-col items-center gap-2 py-12">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-500/60" />
+                  <p className="text-sm font-medium text-muted-foreground/70">
+                    Все расходы закрыты! 🎉
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-12">
+                  <p className="text-sm text-muted-foreground/50">
+                    Нет закрытых расходов
+                  </p>
                 </div>
               )}
             </div>
@@ -447,13 +617,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
               {messageGroups.map((group) => group.items)}
 
               {/* ── Balance summary at bottom ── */}
-              {balances.filter((b) => b.balance !== 0).length > 0 && (
+              {expenseFilter !== "settled" && balances.filter((b) => b.balance !== 0).length > 0 && (
                 <div className="pt-4 space-y-1">
                   <div className="flex justify-center">
                     <Bubble variant="ghost">
                       <BubbleContent className="text-center !p-1">
                         <span className="text-xs font-medium text-muted-foreground/70">
-                          💰 Итого: {total.toLocaleString()} ₸
+                          💰 Остаток: {activeTotal.toLocaleString()} ₸
                         </span>
                       </BubbleContent>
                     </Bubble>
@@ -476,6 +646,19 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                         </Bubble>
                       </div>
                     ))}
+                </div>
+              )}
+
+              {/* ── All settled indicator ── */}
+              {expenseFilter !== "settled" && activeCount === 0 && settledCount > 0 && (
+                <div className="flex justify-center pt-4">
+                  <Bubble variant="ghost">
+                    <BubbleContent className="text-center !p-1">
+                      <span className="text-xs font-medium text-emerald-500/70">
+                        🎉 Все расходы закрыты! Никто никому не должен
+                      </span>
+                    </BubbleContent>
+                  </Bubble>
                 </div>
               )}
             </div>
@@ -513,7 +696,12 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
           name: memberNameMap[s.userId] || "Пользователь",
         }));
         const isMine = selectedExpense.paidBy === user.id;
+        const isSettled = selectedExpense.settled;
+        const canSettle = isMine && !isSettled;
         const paidByName = memberNameMap[selectedExpense.paidBy] || "Пользователь";
+        const settledByName = selectedExpense.settledBy
+          ? memberNameMap[selectedExpense.settledBy] || "Пользователь"
+          : undefined;
         const timeStr = new Date(selectedExpense.createdAt).toLocaleString("ru-RU", {
           hour: "2-digit", minute: "2-digit",
           day: "numeric", month: "long",
@@ -527,13 +715,29 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                 {getCategoryEmoji(selectedExpense.category)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-2xl font-bold tabular-nums">
-                  {selectedExpense.amount.toLocaleString()} ₸
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "text-2xl tabular-nums",
+                    isSettled && "font-semibold text-muted-foreground/70"
+                  )}>
+                    {selectedExpense.amount.toLocaleString()} ₸
+                  </span>
+                  {isSettled && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  )}
                 </div>
                 {selectedExpense.description && (
-                  <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  <p className={cn(
+                    "text-sm truncate mt-0.5",
+                    isSettled ? "text-muted-foreground/50" : "text-muted-foreground"
+                  )}>
                     {selectedExpense.description}
                   </p>
+                )}
+                {isSettled && (
+                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                    Закрыт
+                  </span>
                 )}
               </div>
             </div>
@@ -552,7 +756,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                 <span className="text-muted-foreground">Время</span>
                 <span className="font-medium text-xs">{timeStr}</span>
               </div>
-              <div className="border-t border-border/20 pt-3">
+              {isSettled && settledByName && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Закрыл</span>
+                  <span className="font-medium text-xs text-emerald-600 dark:text-emerald-400">{settledByName}</span>
+                </div>
+              )}
+              <div className={cn("pt-3", !isSettled && "border-t border-border/20")}>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                   <Users className="w-4 h-4" />
                   <span>Разделено на {expenseShares.length} человек</span>
@@ -561,17 +771,56 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                   {expenseShares.map((s) => (
                     <span
                       key={s.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground"
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium",
+                        isSettled
+                          ? "bg-emerald-500/5 text-muted-foreground/60"
+                          : "bg-muted/50 text-muted-foreground"
+                      )}
                     >
                       {s.name}: {s.shareAmount.toLocaleString()} ₸
+                      {isSettled && <CheckCircle2 className="w-3 h-3 text-emerald-400/60" />}
                     </span>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Delete button — only shown for own expenses */}
-            {isMine && (
+            {/* Settle button (только для активных расходов автора) */}
+            {canSettle && (
+              <button
+                onClick={async () => {
+                  if (settlingId) return;
+                  setSettlingId(selectedExpense.id);
+                  try {
+                    await settleExpense(selectedExpense.id, user.id);
+                    setSelectedExpense(null);
+                    showToast("✅ Расход закрыт — все скинулись", "success");
+                  } catch {
+                    showToast("Не удалось закрыть расход", "error");
+                  } finally {
+                    setSettlingId(null);
+                  }
+                }}
+                disabled={!!settlingId}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
+              >
+                {settlingId === selectedExpense.id ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+                    Закрытие...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Отметить, что все скинулись
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Delete button — only for active own expenses */}
+            {isMine && !isSettled && (
               <button
                 onClick={async () => {
                   if (deleting) return;

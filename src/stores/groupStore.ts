@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "./authStore";
 import { useUserStore } from "./userStore";
@@ -36,17 +35,23 @@ interface GroupStore {
   ): Promise<void>;
   deleteExpense(expenseId: string): Promise<void>;
   getExpenses(groupId: string): Expense[];
+  getActiveExpenses(groupId: string): Expense[];
+  getSettledExpenses(groupId: string): Expense[];
   getShares(expenseId: string): ExpenseShare[];
 
-  getGroupBalance(groupId: string): { userId: string; balance: number; name: string }[];
+  /** Пометить расход как закрытый — все скинулись */
+  settleExpense(expenseId: string, settledBy?: string): Promise<void>;
+  /** Пометить все активные расходы группы как закрытые */
+  settleAllExpenses(groupId: string, settledBy?: string): Promise<void>;
+
+  getGroupBalance(groupId: string, includeSettled?: boolean): { userId: string; balance: number; name: string }[];
   getGroupTotal(groupId: string): number;
+  getActiveGroupTotal(groupId: string): number;
 
   syncFromSupabase: () => Promise<void>;
 }
 
-export const useGroupStore = create<GroupStore>()(
-  persist(
-    (set, get) => ({
+export const useGroupStore = create<GroupStore>()((set, get) => ({
       groups: [],
       members: [],
       expenses: [],
@@ -220,6 +225,7 @@ export const useGroupStore = create<GroupStore>()(
         const newExpense: Expense = {
           id, groupId, paidBy, amount, description, category, splitMode,
           createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          settled: false,
         };
 
         const newShares: ExpenseShare[] = shares.map((s) => ({
@@ -236,6 +242,7 @@ export const useGroupStore = create<GroupStore>()(
           await supabase.from("expenses").insert({
             id, group_id: groupId, paid_by: paidBy, amount,
             description, category, split_mode: splitMode,
+            settled: false,
           });
           await supabase.from("expense_shares").insert(
             newShares.map((s) => ({
@@ -279,11 +286,15 @@ export const useGroupStore = create<GroupStore>()(
         return get().shares.filter((s) => s.expenseId === expenseId);
       },
 
-      getGroupBalance(groupId) {
-        const grpExpenses = get().expenses.filter((e) => e.groupId === groupId);
+      getGroupBalance(groupId, includeSettled = false) {
+        // По умолчанию считаем баланс только по НЕзакрытым расходам
+        const grpExpenses = get().expenses.filter(
+          (e) => e.groupId === groupId && (includeSettled || !e.settled)
+        );
         const grpMembers = get().members.filter((m) => m.groupId === groupId);
-        const grpShares = get().shares.filter((s) =>
-          grpExpenses.some((e) => e.id === s.expenseId)
+        const grpExpenseIds = new Set(grpExpenses.map((e) => e.id));
+        const grpShares = get().shares.filter(
+          (s) => grpExpenseIds.has(s.expenseId)
         );
 
         const balances: Record<string, number> = {};
@@ -306,6 +317,61 @@ export const useGroupStore = create<GroupStore>()(
         return get().expenses
           .filter((e) => e.groupId === groupId)
           .reduce((sum, e) => sum + e.amount, 0);
+      },
+
+      getActiveExpenses(groupId) {
+        return get().getExpenses(groupId).filter((e) => !e.settled);
+      },
+
+      getSettledExpenses(groupId) {
+        return get().getExpenses(groupId).filter((e) => e.settled);
+      },
+
+      getActiveGroupTotal(groupId) {
+        return get().getActiveExpenses(groupId).reduce((sum, e) => sum + e.amount, 0);
+      },
+
+      settleExpense: async (expenseId, settledBy) => {
+        const expense = get().expenses.find((e) => e.id === expenseId);
+        if (!expense) return;
+        if (expense.settled) return; // Уже закрыт
+
+        const now = new Date().toISOString();
+
+        // Обновляем локально
+        set((s) => ({
+          expenses: s.expenses.map((e) =>
+            e.id === expenseId
+              ? { ...e, settled: true, settledAt: now, settledBy }
+              : e
+          ),
+          shares: s.shares.map((s) =>
+            s.expenseId === expenseId
+              ? { ...s, settled: true }
+              : s
+          ),
+        }));
+
+        // Best-effort sync с Supabase
+        try {
+          await supabase
+            .from("expenses")
+            .update({ settled: true, settled_at: now, settled_by: settledBy || null })
+            .eq("id", expenseId);
+          await supabase
+            .from("expense_shares")
+            .update({ settled: true })
+            .eq("expense_id", expenseId);
+        } catch (e) {
+          console.warn("Could not sync settleExpense to Supabase:", (e as {message?: string})?.message);
+        }
+      },
+
+      settleAllExpenses: async (groupId, settledBy) => {
+        const activeExpenses = get().getActiveExpenses(groupId);
+        for (const expense of activeExpenses) {
+          await get().settleExpense(expense.id, settledBy);
+        }
       },
 
       syncFromSupabase: async () => {
@@ -381,6 +447,9 @@ export const useGroupStore = create<GroupStore>()(
               category: (e.category as string) || "other",
               splitMode: (e.split_mode as "equal" | "custom") || "equal",
               createdAt: e.created_at as string, updatedAt: e.updated_at as string,
+              settled: e.settled === true,
+              settledAt: (e.settled_at as string) || undefined,
+              settledBy: (e.settled_by as string) || undefined,
             }));
 
             const serverShares: ExpenseShare[] = filteredShares.map((s: Record<string, unknown>) => ({
@@ -414,9 +483,10 @@ export const useGroupStore = create<GroupStore>()(
                 return !serverMemberKeySet.has(`${m.groupId}:${m.userId}`);
               }),
             ];
+            const serverExpenseIds = new Set(serverExpenses.map((e) => e.id));
             const mergedExpenses = [
               ...serverExpenses,
-              ...localState.expenses.filter((e) => !serverGroupIdSet.has(e.groupId)),
+              ...localState.expenses.filter((e) => !serverExpenseIds.has(e.id)),
             ];
 
             const serverShareIds = new Set(serverShares.map((s) => s.id));
@@ -441,13 +511,4 @@ export const useGroupStore = create<GroupStore>()(
           set({ syncStatus: "error" });
         }
       },
-    }),
-    {
-      name: "qaryz-groups",
-      partialize: (state) => ({
-        groups: state.groups, members: state.members,
-        expenses: state.expenses, shares: state.shares,
-      }),
-    }
-  )
-);
+    }));

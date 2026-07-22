@@ -32,6 +32,12 @@ export interface Expense {
   splitMode: "equal" | "custom";
   createdAt: string;
   updatedAt: string;
+  /** 🆕 Все участники скинулись — расход закрыт и не учитывается в балансе */
+  settled: boolean;
+  /** 🆕 Когда был закрыт */
+  settledAt?: string;
+  /** 🆕 Кто инициировал закрытие */
+  settledBy?: string;
   // Joined
   paidByName?: string;
 }

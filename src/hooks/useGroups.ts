@@ -57,12 +57,17 @@ export function useGroupDetail(groupId: string) {
       grpExpenses.some((e) => e.id === s.expenseId)
     );
 
-    // Compute balances
+    // ── Активные (незакрытые) расходы — только они влияют на баланс ──
+    const activeExpenses = grpExpenses.filter((e) => !e.settled);
+    const activeExpenseIds = new Set(activeExpenses.map((e) => e.id));
+    const activeShares = grpShares.filter((s) => activeExpenseIds.has(s.expenseId));
+
+    // Compute balances — только по активным расходам
     const balanceMap: Record<string, number> = {};
     for (const m of grpMembers) balanceMap[m.userId] = 0;
-    for (const e of grpExpenses) {
+    for (const e of activeExpenses) {
       balanceMap[e.paidBy] = (balanceMap[e.paidBy] || 0) + e.amount;
-      for (const s of grpShares.filter((s) => s.expenseId === e.id)) {
+      for (const s of activeShares.filter((s) => s.expenseId === e.id)) {
         balanceMap[s.userId] = (balanceMap[s.userId] || 0) - s.shareAmount;
       }
     }
@@ -74,8 +79,19 @@ export function useGroupDetail(groupId: string) {
     }));
 
     const total = grpExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const activeTotal = activeExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const settledCount = grpExpenses.filter((e) => e.settled).length;
+    const activeCount = activeExpenses.length;
 
-    return { members: grpMembers, expenses: grpExpenses, balances, total };
+    return {
+      members: grpMembers,
+      expenses: grpExpenses,
+      balances,
+      total,
+      activeTotal,
+      settledCount,
+      activeCount,
+    };
   }, [allMembers, allExpenses, shares, groupId]);
 
   return { group, ...result };
