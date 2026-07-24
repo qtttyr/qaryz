@@ -19,6 +19,7 @@ interface AuthStore {
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   setSession: (session: Session | null) => void;
+  deleteAccount: () => Promise<{ error?: string }>;
   syncProfile: () => Promise<void>;
   updateProfile: (userId: string, data: { name?: string; username?: string; phone?: string; avatar_url?: string | null }) => Promise<{ error?: string }>;
 }
@@ -207,5 +208,65 @@ export const useAuthStore = create<AuthStore>((set) => ({
       session,
       state: session ? "authenticated" : "unauthenticated",
     });
+  },
+
+  deleteAccount: async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return { error: "Не авторизован" };
+
+    try {
+      // 1. Delete payments
+      await supabase.from("payments").delete().eq("user_id", user.id);
+      // 2. Delete debts
+      await supabase.from("debts").delete().eq("user_id", user.id);
+      // 3. Delete persons
+      await supabase.from("persons").delete().eq("user_id", user.id);
+      // 4. Delete friends where user is user_id or friend_id
+      await supabase.from("friends").delete().or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+      // 5. Delete friend requests
+      await supabase.from("friend_requests").delete().or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      // 6. Delete shared debts
+      await supabase.from("shared_debts").delete().or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`);
+      // 7. Handle groups — delete groups where created_by = user, leave others
+      const { data: ownedGroups } = await supabase.from("groups").select("id").eq("created_by", user.id);
+      if (ownedGroups && ownedGroups.length > 0) {
+        const ownedIds = ownedGroups.map((g: Record<string, unknown>) => g.id as string);
+        // Delete shares for owned group expenses
+        const { data: ownedExpenses } = await supabase.from("expenses").select("id").in("group_id", ownedIds);
+        if (ownedExpenses && ownedExpenses.length > 0) {
+          const expIds = ownedExpenses.map((e: Record<string, unknown>) => e.id as string);
+          await supabase.from("expense_shares").delete().in("expense_id", expIds);
+        }
+        await supabase.from("expenses").delete().in("group_id", ownedIds);
+        await supabase.from("group_members").delete().in("group_id", ownedIds);
+        await supabase.from("groups").delete().in("id", ownedIds);
+      }
+      // 8. For groups where user is member but not creator — just remove membership
+      await supabase.from("group_members").delete().eq("user_id", user.id);
+      // 9. Delete push subscriptions
+      await supabase.from("push_subscriptions").delete().eq("user_id", user.id);
+      // 10. Delete avatar from storage
+      try {
+        await supabase.storage.from("avatars").remove([`${user.id}/avatar.webp`]);
+      } catch { /* ignore if no avatar */ }
+      // 11. Delete profile
+      await supabase.from("profiles").delete().eq("id", user.id);
+      // 12. Delete the auth user itself (requires admin — use Edge Function)
+      try {
+        await supabase.rpc("delete_user");
+      } catch (e) {
+        console.warn("Could not call delete_user RPC, auth user may remain:", e);
+      }
+      // 13. Sign out + clear local data
+      await supabase.auth.signOut();
+      const keys = ["qaryz-debts", "qaryz-user", "qaryz-friends", "qaryz-groups", "qaryz-consent", "qaryz-ui"];
+      for (const k of keys) localStorage.removeItem(k);
+      useFriendStore.getState().reset();
+      set({ user: null, session: null, state: "unauthenticated" });
+      return {};
+    } catch (e) {
+      console.error("deleteAccount error:", e);
+      return { error: "Не удалось удалить аккаунт. Попробуйте позже." };
+    }
   },
 }));

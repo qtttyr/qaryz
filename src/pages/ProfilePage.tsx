@@ -35,6 +35,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import PushSetupBanner from "@/components/notifications/PushSetupBanner";
 import { Notification02Icon } from "@hugeicons/core-free-icons";
 import { showToast } from "@/components/shared/Toast";
+import { useConsentStore } from "@/stores/consentStore";
 
 export default function ProfilePage() {
   const profile = useUserStore((s) => s.profile);
@@ -46,8 +47,10 @@ export default function ProfilePage() {
 
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const authUpdateProfile = useAuthStore((s) => s.updateProfile);
   const navigate = useNavigate();
+  const resetConsent = useConsentStore((s) => s.resetConsent);
 
   const debts = useDebtStore((s) => s.debts);
   const payments = useDebtStore((s) => s.payments);
@@ -101,6 +104,33 @@ export default function ProfilePage() {
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (deleting) return;
+    const confirmed = window.confirm(
+      "🚨 Вы уверены, что хотите полностью удалить аккаунт?\n\n" +
+      "Это действие необратимо. Все ваши данные (долги, группы, друзья) будут безвозвратно удалены.\n" +
+      "Рекомендуется предварительно урегулировать все взаиморасчёты."
+    );
+    if (!confirmed) return;
+
+    const doubleConfirm = window.prompt("Введите слово «УДАЛИТЬ» для подтверждения:");
+    if (doubleConfirm !== "УДАЛИТЬ") {
+      showToast("Удаление отменено", "info");
+      return;
+    }
+
+    setDeleting(true);
+    const result = await deleteAccount();
+    setDeleting(false);
+
+    if (!result.error) {
+      resetConsent();
+      navigate("/auth", { replace: true });
+    }
   };
 
   const profileLink = `${window.location.origin}/add-friend?user=${user?.id || ""}`;
@@ -456,20 +486,50 @@ export default function ProfilePage() {
           </Button>
         )}
 
+        {isAuthenticated && (
+          <Button
+            variant="destructive"
+            className="w-full h-12 rounded-xl gap-2 font-semibold"
+            onClick={handleDeleteAccount}
+            disabled={deleting}
+          >
+            <HugeiconsIcon icon={Delete02Icon} size={18} />
+            {deleting ? "Удаление..." : "Удалить аккаунт"}
+          </Button>
+        )}
+
         {/* Danger Zone */}
         <Button
           variant="destructive"
           className="w-full h-12 rounded-xl gap-2 font-semibold opacity-60 hover:opacity-100 transition-opacity"
-          onClick={() => {
-            if (confirm("Вы уверены? Все данные будут удалены безвозвратно.")) {
+          onClick={async () => {
+            // Первое подтверждение
+            const ok1 = window.confirm(
+              "Вы уверены, что хотите удалить аккаунт?\n\nВсе ваши данные будут удалены безвозвратно: долги, люди, группы, профиль."
+            );
+            if (!ok1) return;
+
+            // Второе подтверждение — набрать "УДАЛИТЬ"
+            const input = window.prompt('Для подтверждения введите "УДАЛИТЬ" капсом:');
+            if (input !== "УДАЛИТЬ") {
+              window.alert("Неверный ввод. Аккаунт не удалён.");
+              return;
+            }
+
+            // Удаляем
+            const result = await deleteAccount();
+            if (result.error) {
+              window.alert("Ошибка: " + result.error);
+            } else {
+              resetConsent();
               resetProfile();
               localStorage.clear();
-              window.location.reload();
+              navigate("/auth", { replace: true });
             }
           }}
         >
           <HugeiconsIcon icon={Delete02Icon} size={18} />
-          Сбросить все данные
+          Удалить аккаунт
         </Button>
 
         <p className="text-[10px] text-center text-muted-foreground pt-2">

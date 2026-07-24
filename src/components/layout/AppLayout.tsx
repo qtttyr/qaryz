@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import DebtForm from "@/components/debts/DebtForm";
 import PaymentForm from "@/components/debts/PaymentForm";
 import PageLoader from "@/components/shared/PageLoader";
+import LegalFooter from "@/components/layout/LegalFooter";
 import { useUIStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 
@@ -91,6 +92,9 @@ export default function AppLayout() {
         onClose={closeModal}
         debtId={activeModalData?.debtId as string | undefined}
       />
+
+      {/* Legal Footer — only on main pages */}
+      {!isPersonDetail && !isGroupPage && !isFriendPage && <LegalFooter />}
     </div>
   );
 }

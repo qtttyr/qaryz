@@ -10,6 +10,7 @@ import { ToastContainer } from "@/components/shared/Toast";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useSWUpdate } from "@/hooks/useSWUpdate";
 import UpdateBanner from "@/components/notifications/UpdateBanner";
+import CookieBanner from "@/components/legal/CookieBanner";
 
 function App() {
   const theme = useUIStore((s) => s.theme);
@@ -92,6 +93,7 @@ function App() {
         onUpdate={update}
         onDismiss={dismiss}
       />
+      <CookieBanner />
     </>
   );
 }

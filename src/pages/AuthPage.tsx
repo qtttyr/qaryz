@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { useConsentStore } from "@/stores/consentStore";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AiMailIcon, AiLockIcon, AiUserIcon, AiViewIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -21,22 +22,33 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
+  const acceptTerms = useConsentStore((s) => s.acceptTerms);
+  const consentVersion = useConsentStore((s) => s.currentPolicyVersion);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setError("");
-    setLoading(true);
 
+    if (mode === "register" && !agreed) {
+      setError("Необходимо принять Пользовательское соглашение и Политику конфиденциальности");
+      return;
+    }
+
+    setLoading(true);
     const action = mode === "login" ? signIn(email, password) : signUp(email, password, name);
     const result = await action;
-
     setLoading(false);
+
     if (result.error) {
       setError(result.error);
+    } else if (mode === "register") {
+      // Записываем согласие при успешной регистрации
+      acceptTerms(consentVersion);
     }
   };
 
@@ -166,10 +178,49 @@ export default function AuthPage() {
             </motion.p>
           )}
 
+          {/* Consent checkbox — required for registration */}
+          {mode === "register" && (
+            <motion.label
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-start gap-2.5 cursor-pointer group"
+            >
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-border bg-muted accent-primary cursor-pointer shrink-0"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                Я принимаю{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Пользовательское соглашение
+                </a>
+                {" "}и даю согласие на обработку персональных данных в соответствии с{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Политикой конфиденциальности
+                </a>
+              </span>
+            </motion.label>
+          )}
+
           <Button
             type="submit"
             className="w-full h-12 rounded-xl text-base font-semibold"
-            disabled={loading}
+            disabled={loading || (mode === "register" && !agreed)}
           >
             {loading ? (
               <span className="flex items-center gap-2">

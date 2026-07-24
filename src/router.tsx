@@ -23,6 +23,8 @@ const JoinPage = lazy(() => import("@/pages/JoinPage"));
 const AddFriendPage = lazy(() => import("@/pages/AddFriendPage"));
 const FriendsPage = lazy(() => import("@/pages/FriendsPage"));
 const FriendProfilePage = lazy(() => import("@/pages/FriendProfilePage"));
+const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
 
 export const router = createBrowserRouter([
   {
@@ -68,6 +70,22 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <AddFriendPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/privacy",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivacyPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/terms",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <TermsPage />
       </Suspense>
     ),
   },
@@ -178,4 +196,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+  ]);
+
+
